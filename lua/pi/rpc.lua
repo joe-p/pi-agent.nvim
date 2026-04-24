@@ -63,6 +63,9 @@ local function on_stdout(_, data, _)
     return
   end
   
+  -- Debug: show raw data received
+  vim.notify('[pi] raw stdout: ' .. vim.fn.json_encode(data), vim.log.levels.DEBUG, { title = 'pi.nvim' })
+  
   for _, chunk in ipairs(data) do
     if chunk ~= '' then
       stdout_buffer = stdout_buffer .. chunk
@@ -77,6 +80,8 @@ local function on_stdout(_, data, _)
         local line = stdout_buffer:sub(1, nl_pos - 1)
         stdout_buffer = stdout_buffer:sub(nl_pos + 1)
         
+        vim.notify('[pi] line: ' .. line:sub(1, 100), vim.log.levels.DEBUG, { title = 'pi.nvim' })
+        
         process_line(line)
       end
     end
@@ -88,6 +93,9 @@ local function on_stderr(_, data, _)
   if not data then
     return
   end
+  
+  -- Debug: show all stderr
+  vim.notify('[pi] raw stderr: ' .. vim.fn.json_encode(data), vim.log.levels.DEBUG, { title = 'pi.nvim' })
   
   for _, chunk in ipairs(data) do
     if chunk ~= '' then
@@ -119,7 +127,7 @@ function M.start(cmd, opts)
   
   local job_opts = {
     rpc = false,
-    pty = false, -- Don't allocate pty, we want raw output
+    pty = true, -- Use pty to get line-buffered output (fixes buffering issues)
     stdout_buffered = false,
     stderr_buffered = false,
     on_stdout = on_stdout,
@@ -145,6 +153,11 @@ end
 
 -- Handle incoming messages from pi
 function M.handle_message(msg)
+  -- Debug: show event type
+  if msg.type then
+    vim.notify('[pi] Event: ' .. msg.type .. (msg.command and (' (' .. msg.command .. ')') or ''), vim.log.levels.DEBUG, { title = 'pi.nvim' })
+  end
+  
   -- Handle responses (correlated by id)
   if msg.id and pending_requests[msg.id] then
     local callback = pending_requests[msg.id]

@@ -87,6 +87,9 @@ function M.start()
     table.insert(cmd, M.opts.session_dir)
   end
   
+  -- Debug: show command
+  vim.notify('Starting: ' .. table.concat(cmd, ' '), vim.log.levels.INFO)
+  
   -- Initialize UI
   ui.setup(M.opts)
   ui.create_windows()
