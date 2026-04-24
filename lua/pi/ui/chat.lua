@@ -114,9 +114,7 @@ function M.handle_message_update(msg)
   elseif event_type == 'thinking_delta' then
     M.append_thinking(event.delta)
   elseif event_type == 'toolcall_start' then
-    M.append_toolcall_start(event.partial)
   elseif event_type == 'toolcall_delta' then
-    M.append_toolcall_delta(event.delta)
   elseif event_type == 'toolcall_end' then
     M.append_toolcall_end(event.toolCall)
   elseif event_type == 'text_start' then
