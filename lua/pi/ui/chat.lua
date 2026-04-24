@@ -10,6 +10,9 @@ local opts = {}
 local pending_deltas = {}
 local current_message_ns = nil
 
+-- Track thinking text position for highlighting
+local thinking_extmark = nil
+
 function M.setup(config)
   opts = config
 end
@@ -80,6 +83,7 @@ function M.render_message(msg)
     M.handle_message_update(msg)
     
   elseif msg_type == 'message_end' then
+    M.finish_thinking()
     M.append_newline()
     current_message_ns = nil
     
@@ -180,9 +184,75 @@ function M.append_text(text)
 end
 
 function M.append_thinking(text)
-  -- Store or display thinking (collapsible)
-  -- For now, just append inline
-  M.append_text(text)
+  if not text or text == '' then return end
+
+  -- Handle the start of thinking block
+  if not thinking_extmark then
+    local line_count = vim.api.nvim_buf_line_count(buf)
+    local last_line = vim.api.nvim_buf_get_lines(buf, line_count - 1, line_count, false)[1] or ''
+    
+    -- If last line has content, start a new line
+    if last_line ~= '' then
+      vim.api.nvim_buf_set_lines(buf, line_count, line_count, false, { '' })
+      line_count = line_count + 1
+    end
+    
+    -- Create extmark for the thinking text
+    local opts = {
+      virt_text = { { '(*thinking*) ', 'PiThinking' } },
+      virt_text_pos = 'inline',
+    }
+    thinking_extmark = vim.api.nvim_buf_set_extmark(buf, ns_id, line_count - 1, 0, opts)
+  end
+  
+  -- Get current position and append text
+  local start_pos = vim.api.nvim_buf_get_extmark_by_id(buf, ns_id, thinking_extmark, {})
+  local start_line = start_pos[1]
+  local col = start_pos[2]
+  
+  -- Handle newlines in thinking text
+  if text:find('\n') then
+    local parts = vim.split(text, '\n', { plain = true })
+    local line_count = vim.api.nvim_buf_line_count(buf)
+    local last_line = vim.api.nvim_buf_get_lines(buf, line_count - 1, line_count, false)[1] or ''
+    
+    -- First part appends to current line
+    local lines_to_set = { last_line .. parts[1] }
+    
+    -- Add remaining parts as new lines
+    for i = 2, #parts do
+      table.insert(lines_to_set, parts[i])
+    end
+    
+    vim.api.nvim_buf_set_lines(buf, line_count - 1, line_count, false, lines_to_set)
+  else
+    -- Simple append
+    local line_count = vim.api.nvim_buf_line_count(buf)
+    local last_line = vim.api.nvim_buf_get_lines(buf, line_count - 1, line_count, false)[1] or ''
+    vim.api.nvim_buf_set_lines(buf, line_count - 1, line_count, false, { last_line .. text })
+  end
+  
+  -- Apply PiThinking highlight to the new text
+  local new_line_count = vim.api.nvim_buf_line_count(buf)
+  local end_line = new_line_count - 1
+  local end_col = #(vim.api.nvim_buf_get_lines(buf, end_line, end_line + 1, false)[1] or '')
+  
+  -- Highlight the range
+  vim.api.nvim_buf_add_highlight(buf, ns_id, 'PiThinking', start_line, col, -1)
+  if end_line > start_line then
+    for i = start_line + 1, end_line do
+      vim.api.nvim_buf_add_highlight(buf, ns_id, 'PiThinking', i, 0, -1)
+    end
+  end
+end
+
+function M.finish_thinking()
+  -- Add a newline after thinking is done and clear the extmark tracker
+  if thinking_extmark then
+    M.append_newline()
+    M.append_newline()
+    thinking_extmark = nil
+  end
 end
 
 function M.append_newline()
