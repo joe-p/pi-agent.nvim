@@ -21,7 +21,7 @@ local messages = {}
 -- Handle incoming messages
 function M.handle_message(msg)
   local msg_type = msg.type
-  
+
   -- Update state from state responses
   if msg_type == 'response' and msg.command == 'get_state' then
     if msg.success and msg.data then
@@ -37,7 +37,7 @@ function M.handle_message(msg)
     end
     return
   end
-  
+
   -- Track streaming state from events
   if msg_type == 'agent_start' then
     state.isStreaming = true
@@ -52,10 +52,10 @@ function M.handle_message(msg)
   elseif msg_type == 'compaction_end' then
     state.isCompacting = false
   end
-  
+
   -- Store in history for reference
   table.insert(messages, msg)
-  
+
   -- Keep history manageable (last 1000 messages)
   if #messages > 1000 then
     table.remove(messages, 1)

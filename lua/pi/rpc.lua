@@ -21,16 +21,16 @@ local function handle_line(line)
   if line == '' then
     return
   end
-  
+
   -- Strip trailing \r if present (for \r\n compatibility)
   if line:sub(-1) == '\r' then
     line = line:sub(1, -2)
   end
-  
+
   if line == '' then
     return
   end
-  
+
   -- Try to parse as JSON
   local ok, msg = pcall(vim.json.decode, line)
   if not ok then
@@ -40,12 +40,12 @@ local function handle_line(line)
     end
     return
   end
-  
+
   -- Debug notification (uncomment for verbose logging)
   -- if msg.type then
   --   vim.notify('[pi] ' .. msg.type, vim.log.levels.DEBUG, { title = 'pi.nvim' })
   -- end
-  
+
   -- Handle responses (correlated by id)
   if msg.id and pending_requests[msg.id] then
     local callback = pending_requests[msg.id]
@@ -53,7 +53,7 @@ local function handle_line(line)
     callback(msg)
     return
   end
-  
+
   -- Forward to message handler
   if callbacks.on_message then
     callbacks.on_message(msg)
@@ -65,19 +65,19 @@ local function feed_stream(data)
   if not data or data == '' then
     return
   end
-  
+
   stdout_buffer = stdout_buffer .. data
-  
+
   -- Process complete lines (\n is the only delimiter per protocol)
   while true do
     local nl_pos = stdout_buffer:find('\n', 1, true)
     if not nl_pos then
       break
     end
-    
+
     local line = stdout_buffer:sub(1, nl_pos - 1)
     stdout_buffer = stdout_buffer:sub(nl_pos + 1)
-    
+
     handle_line(line)
   end
 end
@@ -88,27 +88,27 @@ function M.send(cmd, callback)
     vim.notify('pi is not running', vim.log.levels.ERROR)
     return nil
   end
-  
+
   -- Only generate new ID if one isn't already set (for responses)
   local id = cmd.id or next_id()
   cmd.id = id
-  
+
   if callback then
     pending_requests[id] = callback
   end
-  
+
   local json = vim.json.encode(cmd)
-  
+
   -- Write to stdin
   local ok, err = pcall(function()
     job_id:write(json .. '\n')
   end)
-  
+
   if not ok then
     vim.notify('Failed to send to pi: ' .. tostring(err), vim.log.levels.ERROR)
     return nil
   end
-  
+
   return id
 end
 
@@ -116,55 +116,60 @@ end
 function M.start(cmd, opts)
   callbacks = opts or {}
   stdout_buffer = ''
-  
-  local ok, process = pcall(vim.system, cmd, {
-    text = true,
-    stdin = true,
-    stdout = vim.schedule_wrap(function(err, data)
-      if err then
-        if callbacks.on_error then
-          callbacks.on_error(err)
+
+  local ok, process = pcall(
+    vim.system,
+    cmd,
+    {
+      text = true,
+      stdin = true,
+      stdout = vim.schedule_wrap(function(err, data)
+        if err then
+          if callbacks.on_error then
+            callbacks.on_error(err)
+          end
+          return
         end
-        return
-      end
-      if data then
-        feed_stream(data)
-      end
-    end),
-    stderr = vim.schedule_wrap(function(err, data)
-      if err then
-        if callbacks.on_error then
-          callbacks.on_error(err)
+        if data then
+          feed_stream(data)
         end
-        return
-      end
-      if data and data ~= '' then
-        vim.notify('pi stderr: ' .. data, vim.log.levels.WARN)
-        if callbacks.on_stderr then
-          callbacks.on_stderr(data)
+      end),
+      stderr = vim.schedule_wrap(function(err, data)
+        if err then
+          if callbacks.on_error then
+            callbacks.on_error(err)
+          end
+          return
         end
+        if data and data ~= '' then
+          vim.notify('pi stderr: ' .. data, vim.log.levels.WARN)
+          if callbacks.on_stderr then
+            callbacks.on_stderr(data)
+          end
+        end
+      end),
+    },
+    vim.schedule_wrap(function(result)
+      -- Process any remaining buffered data
+      if stdout_buffer ~= '' then
+        handle_line(stdout_buffer)
+        stdout_buffer = ''
       end
-    end),
-  }, vim.schedule_wrap(function(result)
-    -- Process any remaining buffered data
-    if stdout_buffer ~= '' then
-      handle_line(stdout_buffer)
-      stdout_buffer = ''
-    end
-    
-    M.cleanup()
-    if callbacks.on_exit then
-      callbacks.on_exit(result.code or 0)
-    end
-    
-    vim.notify('pi exited with code ' .. (result.code or 'unknown'), vim.log.levels.INFO)
-  end))
-  
+
+      M.cleanup()
+      if callbacks.on_exit then
+        callbacks.on_exit(result.code or 0)
+      end
+
+      vim.notify('pi exited with code ' .. (result.code or 'unknown'), vim.log.levels.INFO)
+    end)
+  )
+
   if not ok or not process then
     vim.notify('Failed to spawn pi process: ' .. tostring(process), vim.log.levels.ERROR)
     return false
   end
-  
+
   job_id = process
   vim.notify('pi started', vim.log.levels.INFO)
   return true
@@ -175,10 +180,10 @@ function M.stop()
   if not job_id then
     return
   end
-  
+
   -- Send abort first
-  M.send({ type = 'abort' })
-  
+  M.send { type = 'abort' }
+
   -- Kill after brief delay
   vim.defer_fn(function()
     if job_id then

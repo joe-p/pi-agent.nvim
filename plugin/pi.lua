@@ -4,7 +4,7 @@
 -- Ensure pi module is loaded
 if not _G.pi_loaded then
   _G.pi_loaded = true
-  
+
   -- Set up autocommands for filetypes
   vim.api.nvim_create_autocmd('FileType', {
     pattern = 'pichat',
@@ -18,7 +18,7 @@ if not _G.pi_loaded then
       vim.opt_local.linebreak = true
     end,
   })
-  
+
   vim.api.nvim_create_autocmd('FileType', {
     pattern = 'piinput',
     callback = function()
@@ -30,7 +30,7 @@ if not _G.pi_loaded then
       vim.opt_local.linebreak = true
     end,
   })
-  
+
   -- Create highlight groups
   vim.api.nvim_set_hl(0, 'PiUser', { fg = '#7aa2f7', bold = true })
   vim.api.nvim_set_hl(0, 'PiAssistant', { fg = '#9ece6a', bold = true })

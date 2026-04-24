@@ -7,8 +7,8 @@ local win = nil
 local opts = {}
 
 -- Require modules directly to avoid circular deps
-local rpc = require('pi.rpc')
-local session = require('pi.session')
+local rpc = require 'pi.rpc'
+local session = require 'pi.session'
 
 function M.setup(config)
   opts = config
@@ -18,7 +18,7 @@ function M.create()
   if buf and vim.api.nvim_buf_is_valid(buf) then
     return buf
   end
-  
+
   buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_name(buf, 'pi-input://input')
   vim.api.nvim_set_option_value('filetype', 'piinput', { buf = buf })
@@ -26,13 +26,13 @@ function M.create()
   vim.api.nvim_set_option_value('bufhidden', 'hide', { buf = buf })
   vim.api.nvim_set_option_value('swapfile', false, { buf = buf })
   vim.api.nvim_set_option_value('modifiable', true, { buf = buf })
-  
+
   -- Set up keymaps
   M.setup_keymaps()
-  
+
   -- Prompt placeholder
-  M.set_placeholder('Type your message here...')
-  
+  M.set_placeholder 'Type your message here...'
+
   return buf
 end
 
@@ -62,7 +62,7 @@ function M.setup_keymaps()
       M.send_message(false)
     end,
   })
-  
+
   -- Send steering message with Shift+Enter (or a different key for terminal compatibility)
   vim.api.nvim_buf_set_keymap(buf, 'i', opts.keymaps and opts.keymaps.send_steering and opts.keymaps.send_steering[1] or '<S-CR>', '', {
     noremap = true,
@@ -71,7 +71,7 @@ function M.setup_keymaps()
       M.send_message(true)
     end,
   })
-  
+
   -- Also provide a command version for terminals without Shift+Enter
   vim.api.nvim_buf_set_keymap(buf, 'n', '<C-s>', '', {
     noremap = true,
@@ -80,7 +80,7 @@ function M.setup_keymaps()
       M.send_message(true)
     end,
   })
-  
+
   -- Clear on <C-c>
   vim.api.nvim_buf_set_keymap(buf, 'n', '<C-c>', '', {
     noremap = true,
@@ -89,16 +89,16 @@ function M.setup_keymaps()
       M.clear()
     end,
   })
-  
+
   -- Abort on double C-c
   vim.api.nvim_buf_set_keymap(buf, 'n', '<C-c><C-c>', '', {
     noremap = true,
     silent = true,
     callback = function()
-      rpc.send({ type = 'abort' })
+      rpc.send { type = 'abort' }
     end,
   })
-  
+
   -- @ file reference support
   vim.api.nvim_buf_set_keymap(buf, 'i', '@', '', {
     noremap = true,
@@ -111,19 +111,19 @@ function M.setup_keymaps()
       end, 100)
     end,
   })
-  
+
   -- New session
   vim.api.nvim_buf_set_keymap(buf, 'n', '<C-n>', '', {
     noremap = true,
     silent = true,
     callback = function()
-      rpc.send({ type = 'new_session' })
+      rpc.send { type = 'new_session' }
       -- Clear chat via UI
-      local ui = require('pi.ui')
+      local ui = require 'pi.ui'
       ui.clear_chat()
     end,
   })
-  
+
   -- File reference in normal mode
   vim.api.nvim_buf_set_keymap(buf, 'n', '@', '', {
     noremap = true,
@@ -136,38 +136,38 @@ function M.send_message(steering)
   if not buf or not vim.api.nvim_buf_is_valid(buf) then
     return
   end
-  
+
   -- Get all lines
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   local text = table.concat(lines, '\n')
-  
+
   -- Trim whitespace
   text = vim.trim(text)
-  
+
   -- Don't send empty messages
   if text == '' then
     return
   end
-  
+
   -- Build command
   local state = session.get_state()
   local cmd = {
     type = 'prompt',
     message = text,
   }
-  
+
   -- Add streaming behavior if agent is busy
   if state and state.isStreaming then
     cmd.streamingBehavior = steering and 'steer' or 'followUp'
   end
-  
+
   -- Send via RPC
   rpc.send(cmd)
-  
+
   -- Add to UI
-  local ui = require('pi.ui')
+  local ui = require 'pi.ui'
   ui.add_user_message(text)
-  
+
   -- Clear buffer
   M.clear()
 end
@@ -187,11 +187,11 @@ end
 function M.open_file_picker()
   -- Use built-in file picker or telescope/fzf if available
   local picker = M.get_picker()
-  
+
   if picker == 'telescope' then
-    require('telescope.builtin').find_files({
+    require('telescope.builtin').find_files {
       attach_mappings = function(prompt_bufnr, map)
-        local actions = require('telescope.actions')
+        local actions = require 'telescope.actions'
         actions.select_default:replace(function()
           actions.close(prompt_bufnr)
           local selection = require('telescope.actions.state').get_selected_entry()
@@ -201,9 +201,9 @@ function M.open_file_picker()
         end)
         return true
       end,
-    })
+    }
   elseif picker == 'fzf-lua' then
-    require('fzf-lua').files({
+    require('fzf-lua').files {
       actions = {
         ['default'] = function(selected)
           if selected then
@@ -211,7 +211,7 @@ function M.open_file_picker()
           end
         end,
       },
-    })
+    }
   else
     -- Fallback to built-in
     vim.ui.select(vim.fn.glob('**/*', true, true), {
@@ -227,12 +227,16 @@ end
 function M.get_picker()
   -- Check for telescope
   local ok, _ = pcall(require, 'telescope')
-  if ok then return 'telescope' end
-  
+  if ok then
+    return 'telescope'
+  end
+
   -- Check for fzf-lua
   ok, _ = pcall(require, 'fzf-lua')
-  if ok then return 'fzf-lua' end
-  
+  if ok then
+    return 'fzf-lua'
+  end
+
   -- Fallback to none
   return nil
 end
@@ -241,7 +245,7 @@ function M.insert_file_ref(filepath)
   -- Get cursor position
   local row, col = unpack(vim.api.nvim_win_get_cursor(0))
   local line = vim.api.nvim_buf_get_lines(buf, row - 1, row, false)[1] or ''
-  
+
   -- Insert @filepath after cursor
   local before = line:sub(1, col)
   local after = line:sub(col + 1)
@@ -255,7 +259,7 @@ function M.focus()
     if vim.api.nvim_win_get_buf(win_id) == buf then
       vim.api.nvim_set_current_win(win_id)
       -- Enter insert mode
-      vim.cmd('startinsert')
+      vim.cmd 'startinsert'
       return
     end
   end
