@@ -54,8 +54,9 @@ function M.configure_window(win_id)
 end
 
 function M.setup_keymaps()
-  -- Toggle with q (consistent with chat buffer)
-  vim.api.nvim_buf_set_keymap(buf, 'n', 'q', ':PiToggle<CR>', { noremap = true, silent = true })
+  -- Toggle with close keymap (default: q)
+  local close_key = opts.keymaps and opts.keymaps.close or 'q'
+  vim.api.nvim_buf_set_keymap(buf, 'n', close_key, '<cmd>PiToggle<CR>', { noremap = true, silent = true })
 
   -- Send message with Enter in normal mode
   vim.api.nvim_buf_set_keymap(buf, 'n', '<CR>', '', {
@@ -66,8 +67,9 @@ function M.setup_keymaps()
     end,
   })
 
+  local send_steering_key = opts.keymaps and opts.keymaps.send_steering or '<S-CR>'
   -- Send steering message with Shift+Enter (or a different key for terminal compatibility)
-  vim.api.nvim_buf_set_keymap(buf, 'i', opts.keymaps and opts.keymaps.send_steering and opts.keymaps.send_steering[1] or '<S-CR>', '', {
+  vim.api.nvim_buf_set_keymap(buf, 'i', send_steering_key, '', {
     noremap = true,
     silent = true,
     callback = function()

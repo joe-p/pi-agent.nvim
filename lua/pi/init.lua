@@ -20,12 +20,9 @@ M.defaults = {
   -- UI options
   chat_width = 0.45, -- percentage of screen width for right panel
   chat_height_ratio = 0.75, -- percentage of height for chat within right panel (input gets rest)
-  -- Keymaps
+  -- Keymaps - just the key names, plugin sets opts
   keymaps = {
-    send = { 'i', { noremap = true, silent = true }, { desc = 'Send message' } },
-    send_steering = { 'S-CR', { noremap = true, silent = true }, { desc = 'Send steering message' } },
-    abort = { 'C-c', { noremap = true, silent = true }, { desc = 'Abort' } },
-    new_session = { 'C-n', { noremap = true, silent = true }, { desc = 'New session' } },
+    close = 'q',
   },
 }
 

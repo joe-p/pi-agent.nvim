@@ -33,10 +33,8 @@ function M.create()
   vim.api.nvim_set_option_value('swapfile', false, { buf = buf })
   vim.api.nvim_set_option_value('modifiable', true, { buf = buf })
 
-  -- (Window-local options set in configure_window)
-
-  -- Keymaps - q toggles to match PiToggle behavior
-  vim.api.nvim_buf_set_keymap(buf, 'n', 'q', ':PiToggle<CR>', { noremap = true, silent = true })
+  local close_key = opts.keymaps and opts.keymaps.close or 'q'
+  vim.api.nvim_buf_set_keymap(buf, 'n', close_key, '<cmd>PiToggle<CR>', { noremap = true, silent = true })
 
   return buf
 end
