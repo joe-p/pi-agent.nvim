@@ -64,7 +64,7 @@ end
 
 -- Render a message event from pi
 function M.render_message(msg)
-  vim.notify('render_message: ' .. vim.inspect(msg))
+  -- vim.notify('render_message: ' .. vim.inspect(msg))
   local msg_type = msg.type
 
   if msg_type == 'agent_start' then
@@ -74,6 +74,11 @@ function M.render_message(msg)
     -- Render final messages if available
     if msg.messages then
       M.render_message_history(msg.messages)
+      for _, m in ipairs(msg.messages) do
+        if m.errorMessage then
+          vim.notify('ERROR: ' .. m.errorMessage)
+        end
+      end
     end
   elseif msg_type == 'message_start' then
     current_message_ns = vim.api.nvim_create_namespace('pi-message-' .. vim.fn.localtime())
