@@ -83,7 +83,6 @@ function M.render_message(msg)
   elseif msg_type == 'tool_execution_start' then
     M.append_tool_start(msg.toolName, msg.args)
   elseif msg_type == 'tool_execution_update' then
-    M.update_tool_output(msg.toolCallId, msg.partialResult)
   elseif msg_type == 'tool_execution_end' then
     M.append_tool_end(msg.toolCallId, msg.result, msg.isError)
   elseif msg_type == 'error' or msg_type == 'extension_error' then
