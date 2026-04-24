@@ -152,12 +152,31 @@ end
 function M.append_text(text)
   if not text or text == '' then return end
   
-  -- Get the last line
-  local line_count = vim.api.nvim_buf_line_count(buf)
-  local last_line = vim.api.nvim_buf_get_lines(buf, line_count - 1, line_count, false)[1] or ''
-  
-  -- Append to last line
-  vim.api.nvim_buf_set_lines(buf, line_count - 1, line_count, false, { last_line .. text })
+  -- Handle newlines in the text
+  if text:find('\n') then
+    -- Split text by newlines
+    local parts = vim.split(text, '\n', { plain = true })
+    
+    -- Get the last line
+    local line_count = vim.api.nvim_buf_line_count(buf)
+    local last_line = vim.api.nvim_buf_get_lines(buf, line_count - 1, line_count, false)[1] or ''
+    
+    -- First part appends to current line
+    local lines_to_set = { last_line .. parts[1] }
+    
+    -- Add remaining parts as new lines
+    for i = 2, #parts do
+      table.insert(lines_to_set, parts[i])
+    end
+    
+    vim.api.nvim_buf_set_lines(buf, line_count - 1, line_count, false, lines_to_set)
+  else
+    -- Simple append without newlines
+    local line_count = vim.api.nvim_buf_line_count(buf)
+    local last_line = vim.api.nvim_buf_get_lines(buf, line_count - 1, line_count, false)[1] or ''
+    
+    vim.api.nvim_buf_set_lines(buf, line_count - 1, line_count, false, { last_line .. text })
+  end
 end
 
 function M.append_thinking(text)
