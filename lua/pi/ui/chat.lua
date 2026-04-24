@@ -158,6 +158,11 @@ end
 function M.append_text(text)
   if not text or text == '' then return end
   
+  -- Finish thinking if we're switching to regular text
+  if thinking_active then
+    M.finish_thinking()
+  end
+  
   -- Handle newlines in the text
   if text:find('\n') then
     -- Split text by newlines
