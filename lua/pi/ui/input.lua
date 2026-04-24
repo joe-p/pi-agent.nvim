@@ -55,7 +55,7 @@ end
 
 function M.setup_keymaps()
   -- Toggle with q (consistent with chat buffer)
-  vim.api.nvim_buf_set_keymap(buf, 'n', 'q', ':PiToggle', { noremap = true, silent = true })
+  vim.api.nvim_buf_set_keymap(buf, 'n', 'q', ':PiToggle<CR>', { noremap = true, silent = true })
 
   -- Send message with Enter in normal mode
   vim.api.nvim_buf_set_keymap(buf, 'n', '<CR>', '', {

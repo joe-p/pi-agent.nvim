@@ -36,7 +36,7 @@ function M.create()
   -- (Window-local options set in configure_window)
 
   -- Keymaps - q toggles to match PiToggle behavior
-  vim.api.nvim_buf_set_keymap(buf, 'n', 'q', ':PiToggle', { noremap = true, silent = true })
+  vim.api.nvim_buf_set_keymap(buf, 'n', 'q', ':PiToggle<CR>', { noremap = true, silent = true })
 
   return buf
 end
