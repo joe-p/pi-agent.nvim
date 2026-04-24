@@ -8,11 +8,43 @@ local input = require 'pi.ui.input'
 
 local opts = {}
 local windows = {}
+local _is_intentionally_closing = false
+
+-- Check if buffer is a pi buffer (chat or input)
+local function is_pi_buffer(bufnr)
+  if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) then
+    return false
+  end
+  local ft = vim.api.nvim_get_option_value('filetype', { buf = bufnr })
+  return ft == 'pichat' or ft == 'piinput'
+end
+
+-- Function to check if we're allowed to close
+function M.allow_buffer_close()
+  return _is_intentionally_closing
+end
 
 function M.setup(config)
   opts = config
   chat.setup(config)
   input.setup(config)
+  
+  -- Set up WinClosed autocommand to restore windows if closed accidentally
+  vim.api.nvim_create_autocmd('WinClosed', {
+    group = vim.api.nvim_create_augroup('PiProtectWindows', { clear = true }),
+    callback = function(args)
+      local closed_win = tonumber(args.match)
+      if not closed_win then return end
+      
+      -- Check if one of our pi windows was closed
+      if (windows.chat == closed_win or windows.input == closed_win) and not _is_intentionally_closing then
+        -- Mark both windows as needing restoration
+        vim.defer_fn(function()
+          M.restore_windows()
+        end, 10)
+      end
+    end,
+  })
 end
 
 function M.create_windows()
@@ -76,6 +108,8 @@ function M.bind_buffers()
 end
 
 function M.close()
+  _is_intentionally_closing = true
+  
   -- Close windows but keep buffers
   if windows.chat then
     pcall(vim.api.nvim_win_close, windows.chat, true)
@@ -84,6 +118,28 @@ function M.close()
     pcall(vim.api.nvim_win_close, windows.input, true)
   end
   windows = {}
+  
+  _is_intentionally_closing = false
+end
+
+function M.restore_windows()
+  -- Only restore if we're supposed to be open (buffers exist)
+  local chat_buf = chat.get_buf()
+  local input_buf = input.get_buf()
+  
+  if not chat_buf or not input_buf then
+    return
+  end
+  
+  -- Check if windows are missing
+  local chat_valid = windows.chat and vim.api.nvim_win_is_valid(windows.chat)
+  local input_valid = windows.input and vim.api.nvim_win_is_valid(windows.input)
+  
+  if not chat_valid or not input_valid then
+    -- One or both windows were closed - recreate layout
+    M.create_windows()
+    vim.notify('Pi windows restored (use PiToggle to close)', vim.log.levels.INFO)
+  end
 end
 
 function M.is_open()
