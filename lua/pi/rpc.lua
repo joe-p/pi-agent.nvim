@@ -89,7 +89,8 @@ function M.send(cmd, callback)
     return nil
   end
   
-  local id = next_id()
+  -- Only generate new ID if one isn't already set (for responses)
+  local id = cmd.id or next_id()
   cmd.id = id
   
   if callback then
