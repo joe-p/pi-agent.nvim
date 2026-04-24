@@ -1,0 +1,99 @@
+-- pi.nvim session state management
+
+local M = {}
+
+-- Session state
+local state = {
+  isStreaming = false,
+  isCompacting = false,
+  steeringMode = 'one-at-a-time',
+  followUpMode = 'one-at-a-time',
+  sessionFile = nil,
+  sessionId = nil,
+  sessionName = nil,
+  messageCount = 0,
+  model = nil,
+}
+
+-- Message history (for reference)
+local messages = {}
+
+-- Handle incoming messages
+function M.handle_message(msg)
+  local msg_type = msg.type
+  
+  -- Update state from state responses
+  if msg_type == 'response' and msg.command == 'get_state' then
+    if msg.success and msg.data then
+      state.isStreaming = msg.data.isStreaming
+      state.isCompacting = msg.data.isCompacting
+      state.steeringMode = msg.data.steeringMode
+      state.followUpMode = msg.data.followUpMode
+      state.sessionFile = msg.data.sessionFile
+      state.sessionId = msg.data.sessionId
+      state.sessionName = msg.data.sessionName
+      state.messageCount = msg.data.messageCount
+      state.model = msg.data.model
+    end
+    return
+  end
+  
+  -- Track streaming state from events
+  if msg_type == 'agent_start' then
+    state.isStreaming = true
+  elseif msg_type == 'agent_end' then
+    state.isStreaming = false
+    -- Update message count
+    if msg.messages then
+      state.messageCount = #msg.messages
+    end
+  elseif msg_type == 'compaction_start' then
+    state.isCompacting = true
+  elseif msg_type == 'compaction_end' then
+    state.isCompacting = false
+  end
+  
+  -- Store in history for reference
+  table.insert(messages, msg)
+  
+  -- Keep history manageable (last 1000 messages)
+  if #messages > 1000 then
+    table.remove(messages, 1)
+  end
+end
+
+-- Get current state
+function M.get_state()
+  return vim.deepcopy(state)
+end
+
+-- Check if agent is busy
+function M.is_busy()
+  return state.isStreaming or state.isCompacting
+end
+
+-- Get session info
+function M.get_session_info()
+  return {
+    file = state.sessionFile,
+    id = state.sessionId,
+    name = state.sessionName,
+  }
+end
+
+-- Get current model
+function M.get_model()
+  return state.model
+end
+
+-- Clear message history (on new session)
+function M.clear_history()
+  messages = {}
+end
+
+-- Get messages (for debugging or /tree-like functionality)
+function M.get_messages()
+  return vim.deepcopy(messages)
+end
+
+return M
