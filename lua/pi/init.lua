@@ -53,6 +53,10 @@ function M.setup(opts)
   vim.api.nvim_create_user_command('PiChat', function()
     M.open_chat()
   end, { desc = 'Open pi chat' })
+  
+  vim.api.nvim_create_user_command('PiToggle', function()
+    M.toggle()
+  end, { desc = 'Toggle pi chat and input windows' })
 end
 
 function M.start()
@@ -121,6 +125,14 @@ end
 
 function M.open_chat()
   if not ui.is_open() then
+    ui.create_windows()
+  end
+end
+
+function M.toggle()
+  if ui.is_open() then
+    ui.close()
+  else
     ui.create_windows()
   end
 end
