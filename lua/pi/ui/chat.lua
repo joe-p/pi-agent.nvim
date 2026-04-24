@@ -6,10 +6,6 @@ local buf = nil
 local ns_id = vim.api.nvim_create_namespace 'pi-chat'
 local opts = {}
 
--- Message store for rendering
-local pending_deltas = {}
-local current_message_ns = nil
-
 -- Track thinking text position for highlighting
 local thinking_active = false
 local thinking_start_line = nil
@@ -59,12 +55,10 @@ function M.clear()
     return
   end
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, {})
-  pending_deltas = {}
 end
 
 -- Render a message event from pi
 function M.render_message(msg)
-  -- vim.notify('render_message: ' .. vim.inspect(msg))
   local msg_type = msg.type
 
   if msg_type == 'agent_start' then
@@ -73,7 +67,6 @@ function M.render_message(msg)
     M.finish_spinner()
     -- Render final messages if available
     if msg.messages then
-      M.render_message_history(msg.messages)
       for _, m in ipairs(msg.messages) do
         if m.errorMessage then
           vim.notify('pi-agent ERROR: ' .. m.errorMessage, vim.log.levels.ERROR)
@@ -82,13 +75,11 @@ function M.render_message(msg)
       end
     end
   elseif msg_type == 'message_start' then
-    current_message_ns = vim.api.nvim_create_namespace('pi-message-' .. vim.fn.localtime())
   elseif msg_type == 'message_update' then
     M.handle_message_update(msg)
   elseif msg_type == 'message_end' then
     M.finish_thinking()
     M.append_newline()
-    current_message_ns = nil
   elseif msg_type == 'tool_execution_start' then
     M.append_tool_start(msg.toolName, msg.args)
   elseif msg_type == 'tool_execution_update' then
@@ -311,12 +302,7 @@ function M.append_tool_start(toolName, args)
   M.append_lines(lines)
 end
 
-function M.update_tool_output(toolCallId, partialResult)
-  -- Update the output for this tool call
-  -- (More complex - would need to track extmarks per tool)
-end
-
-function M.append_tool_end(toolCallId, result, isError)
+function M.append_tool_end(_, result, isError)
   local lines = { '│' }
 
   if result and result.content then
@@ -355,14 +341,6 @@ function M.append_info(info)
   M.append_lines(lines)
 end
 
-function M.append_toolcall_start(partial)
-  -- Start of tool call
-end
-
-function M.append_toolcall_delta(delta)
-  -- Tool call building
-end
-
 function M.append_toolcall_end(toolCall)
   local lines = {
     '',
@@ -372,11 +350,6 @@ function M.append_toolcall_end(toolCall)
     '',
   }
   M.append_lines(lines)
-end
-
-function M.render_message_history(messages)
-  -- Render complete message history (used on agent_end)
-  -- Could re-render everything for consistency
 end
 
 return M
