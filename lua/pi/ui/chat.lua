@@ -28,10 +28,7 @@ function M.create()
   vim.api.nvim_set_option_value('swapfile', false, { buf = buf })
   vim.api.nvim_set_option_value('modifiable', true, { buf = buf })
   
-  -- Set up highlighting
-  vim.api.nvim_set_option_value('wrap', true, { buf = buf })
-  vim.api.nvim_set_option_value('linebreak', true, { buf = buf })
-  vim.api.nvim_set_option_value('breakindent', true, { buf = buf })
+  -- (Window-local options set in configure_window)
   
   -- Keymaps
   vim.api.nvim_buf_set_keymap(buf, 'n', 'q', ':q', { noremap = true, silent = true })
@@ -49,6 +46,9 @@ function M.configure_window(win)
   vim.api.nvim_set_option_value('number', false, { win = win })
   vim.api.nvim_set_option_value('relativenumber', false, { win = win })
   vim.api.nvim_set_option_value('signcolumn', 'no', { win = win })
+  vim.api.nvim_set_option_value('wrap', true, { win = win })
+  vim.api.nvim_set_option_value('linebreak', true, { win = win })
+  vim.api.nvim_set_option_value('breakindent', true, { win = win })
 end
 
 function M.clear()

@@ -32,10 +32,6 @@ function M.create()
   vim.api.nvim_set_option_value('swapfile', false, { buf = buf })
   vim.api.nvim_set_option_value('modifiable', true, { buf = buf })
   
-  -- Input buffer options
-  vim.api.nvim_set_option_value('wrap', true, { buf = buf })
-  vim.api.nvim_set_option_value('linebreak', true, { buf = buf })
-  
   -- Set up keymaps
   M.setup_keymaps()
   
@@ -56,6 +52,10 @@ function M.configure_window(win_id)
   vim.api.nvim_set_option_value('relativenumber', false, { win = win_id })
   vim.api.nvim_set_option_value('signcolumn', 'no', { win = win_id })
   vim.api.nvim_set_option_value('cursorline', true, { win = win_id })
+  -- Window-local display options
+  vim.api.nvim_set_option_value('wrap', true, { win = win_id })
+  vim.api.nvim_set_option_value('linebreak', true, { win = win_id })
+  vim.api.nvim_set_option_value('breakindent', true, { win = win_id })
 end
 
 function M.setup_keymaps()
