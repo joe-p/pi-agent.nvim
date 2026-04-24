@@ -120,8 +120,16 @@ function M.handle_message_update(msg)
     M.append_toolcall_delta(event.delta)
   elseif event_type == 'toolcall_end' then
     M.append_toolcall_end(event.toolCall)
+  elseif event_type == 'text_start' then
+    -- no-op, handled in delta
+  elseif event_type == 'text_end' then
+    -- no-op, handled in delta
+  elseif event_type == 'thinking_start' then
+    -- no-op, handled in delta
+  elseif event_type == 'thinking_end' then
+    -- no-op, handled in delta
   else
-    vim.notify('unknown event: ' .. vim.inspect(event))
+    vim.notify('[pi-agent]: unknown event type: ' .. event_type .. ' ' .. vim.inspect(event), vim.log.levels.WARN)
   end
 end
 
