@@ -106,6 +106,7 @@ end
 function M.handle_message_update(msg)
   local event = msg.assistantMessageEvent
   if not event then
+    vim.notify('non-event: ' .. vim.inspect(msg))
     return
   end
 
@@ -121,8 +122,8 @@ function M.handle_message_update(msg)
     M.append_toolcall_delta(event.delta)
   elseif event_type == 'toolcall_end' then
     M.append_toolcall_end(event.toolCall)
-  elseif event_type == 'error' then
-    vim.notify(vim.inspect(event))
+  else
+    vim.notify('unknown event: ' .. vim.inspect(event))
   end
 end
 
