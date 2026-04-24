@@ -1,4 +1,5 @@
 -- pi.nvim UI module
+-- Simple layout: chat + input stacked vertically on the right
 
 local M = {}
 
@@ -18,82 +19,51 @@ function M.create_windows()
   -- Close existing windows
   M.close()
   
-  local layout = opts.layout or 'horizontal'
-  
-  if layout == 'horizontal' then
-    M.create_horizontal_layout()
-  elseif layout == 'vertical' then
-    M.create_vertical_layout()
-  else
-    M.create_tab_layout()
-  end
+  -- Create the layout: chat+input on the right
+  M.create_right_windows()
   
   -- Initialize buffers
   chat.create()
   input.create()
   
-  -- Set up the windows
-  M.arrange_windows(layout)
+  -- Bind buffers to windows
+  M.bind_buffers()
   
   -- Focus input window
   input.focus()
 end
 
-function M.create_horizontal_layout()
+function M.create_right_windows()
   -- Save original window
   local original_win = vim.api.nvim_get_current_win()
   
   -- Calculate sizes
   local height = vim.o.lines
   local width = vim.o.columns
-  local chat_height = math.floor(height * (opts.chat_height or 0.7))
-  local input_height = math.min(opts.input_height or 3, height - chat_height - 2)
   
-  -- Create chat window (top)
-  vim.cmd(string.format('botright %dsplit', chat_height))
+  -- How much width to use on the right
+  local right_width = math.floor(width * (opts.chat_width or 0.45))
+  
+  -- Chat gets most of the height, input gets the rest
+  local chat_height = math.floor(height * (opts.chat_height_ratio or 0.75))
+  
+  -- Create vertical split on the RIGHT
+  vim.cmd(string.format('botright %dvsplit', right_width))
+  
+  -- Now we're in the right panel
+  -- Split it horizontally: chat on top, input on bottom
+  vim.cmd(string.format('aboveleft %dsplit', chat_height))
   windows.chat = vim.api.nvim_get_current_win()
   
-  -- Create input window (bottom)
-  vim.cmd(string.format('%dsplit', input_height))
+  -- Input window is below
+  vim.cmd('wincmd j')
   windows.input = vim.api.nvim_get_current_win()
   
-  -- Go back to original window
+  -- Go back to original window (left side)
   vim.api.nvim_set_current_win(original_win)
 end
 
-function M.create_vertical_layout()
-  -- Save original window
-  local original_win = vim.api.nvim_get_current_win()
-  
-  -- Calculate sizes
-  local width = vim.o.columns
-  local chat_width = math.floor(width * (opts.chat_width or 0.5))
-  local input_width = width - chat_width
-  
-  -- Create chat window (left)
-  vim.cmd(string.format('topleft %dvsplit', chat_width))
-  windows.chat = vim.api.nvim_get_current_win()
-  
-  -- Create input window (right, same height as chat)
-  vim.cmd('wincmd l')
-  windows.input = vim.api.nvim_get_current_win()
-  
-  -- Go back to original window
-  vim.api.nvim_set_current_win(original_win)
-end
-
-function M.create_tab_layout()
-  -- Create chat window in new tab
-  vim.cmd('tabnew')
-  windows.chat = vim.api.nvim_get_current_win()
-  
-  -- Create input window at bottom
-  vim.cmd(string.format('botright %dsplit', opts.input_height or 3))
-  windows.input = vim.api.nvim_get_current_win()
-end
-
-function M.arrange_windows(layout)
-  -- Set buffer to windows
+function M.bind_buffers()
   if windows.chat then
     vim.api.nvim_win_set_buf(windows.chat, chat.get_buf())
     chat.configure_window(windows.chat)

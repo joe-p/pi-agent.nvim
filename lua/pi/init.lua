@@ -17,13 +17,9 @@ M.defaults = {
   model = nil,
   no_session = false,
   session_dir = nil,
-  -- Window layout
-  layout = 'horizontal', -- 'horizontal' (chat top), 'vertical' (chat left), 'tab' (full screen)
   -- UI options
-  chat_height = 0.7, -- percentage for horizontal layout
-  chat_width = 0.5, -- percentage for vertical layout
-  -- Input options
-  input_height = 3, -- lines for input window
+  chat_width = 0.45, -- percentage of screen width for right panel
+  chat_height_ratio = 0.75, -- percentage of height for chat within right panel (input gets rest)
   -- Keymaps
   keymaps = {
     send = { 'i', { noremap = true, silent = true }, { desc = 'Send message' } },
