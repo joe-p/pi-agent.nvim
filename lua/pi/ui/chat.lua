@@ -76,7 +76,8 @@ function M.render_message(msg)
       M.render_message_history(msg.messages)
       for _, m in ipairs(msg.messages) do
         if m.errorMessage then
-          vim.notify('ERROR: ' .. m.errorMessage)
+          vim.notify('pi-agent ERROR: ' .. m.errorMessage, vim.log.levels.ERROR)
+          M.append_error(m.errorMessage)
         end
       end
     end
