@@ -64,6 +64,7 @@ end
 
 -- Render a message event from pi
 function M.render_message(msg)
+  vim.notify('render_message: ' .. vim.inspect(msg))
   local msg_type = msg.type
 
   if msg_type == 'agent_start' then
