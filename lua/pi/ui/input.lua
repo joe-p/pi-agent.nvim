@@ -5,18 +5,13 @@ local M = {}
 local buf = nil
 local win = nil
 local opts = {}
-local main_module = nil
+
+-- Require modules directly to avoid circular deps
+local rpc = require('pi.rpc')
+local session = require('pi.session')
 
 function M.setup(config)
   opts = config
-  -- Store reference to main module lazily
-end
-
-function M.get_main_module()
-  if not main_module then
-    main_module = require('pi')
-  end
-  return main_module
 end
 
 function M.create()
@@ -96,12 +91,11 @@ function M.setup_keymaps()
   })
   
   -- Abort on double C-c
-  local cc_count = 0
   vim.api.nvim_buf_set_keymap(buf, 'n', '<C-c><C-c>', '', {
     noremap = true,
     silent = true,
     callback = function()
-      M.get_main_module().abort()
+      rpc.send({ type = 'abort' })
     end,
   })
   
@@ -123,7 +117,10 @@ function M.setup_keymaps()
     noremap = true,
     silent = true,
     callback = function()
-      M.get_main_module().new_session()
+      rpc.send({ type = 'new_session' })
+      -- Clear chat via UI
+      local ui = require('pi.ui')
+      ui.clear_chat()
     end,
   })
   
@@ -152,8 +149,24 @@ function M.send_message(steering)
     return
   end
   
-  -- Send to main module
-  M.get_main_module().send_message(text, { steering = steering })
+  -- Build command
+  local state = session.get_state()
+  local cmd = {
+    type = 'prompt',
+    message = text,
+  }
+  
+  -- Add streaming behavior if agent is busy
+  if state and state.isStreaming then
+    cmd.streamingBehavior = steering and 'steer' or 'followUp'
+  end
+  
+  -- Send via RPC
+  rpc.send(cmd)
+  
+  -- Add to UI
+  local ui = require('pi.ui')
+  ui.add_user_message(text)
   
   -- Clear buffer
   M.clear()
