@@ -280,36 +280,50 @@ function M.render_history(messages)
     if msg.role == 'user' then
       M.add_user_message(extract_text(msg.content))
     elseif msg.role == 'assistant' then
-      -- Render assistant message
+      -- Render assistant message - process content blocks in order
       local text_parts = {}
-      local had_thinking = false
+      local thinking_parts = {}
+      local tool_calls = {}
 
       if type(msg.content) == 'table' then
+        -- First pass: categorize blocks
         for _, part in ipairs(msg.content) do
           if part.type == 'text' and part.text then
             table.insert(text_parts, part.text)
-          elseif part.type == 'thinking' then
-            had_thinking = true
+          elseif part.type == 'thinking' and part.thinking then
+            table.insert(thinking_parts, part.thinking)
           elseif part.type == 'toolCall' then
-            -- Show tool call
-            M.append_toolcall_end(part)
+            table.insert(tool_calls, part)
           elseif part.type == 'image' then
             -- Skip images in history
           end
         end
+
+        -- Render thinking first (same as real-time)
+        if #thinking_parts > 0 then
+          M.append_seperator 'Thinking...'
+          M.append_newline()
+          M.append_text(table.concat(thinking_parts, '\n'))
+          M.append_newline()
+        end
+
+        -- Render tool calls
+        for _, tc in ipairs(tool_calls) do
+          M.append_toolcall_end(tc)
+        end
+
+        -- Render text response
+        if #text_parts > 0 then
+          M.append_seperator 'Pi'
+          M.append_newline()
+          M.append_text(table.concat(text_parts, '\n'))
+          M.append_newline()
+        end
       elseif type(msg.content) == 'string' then
-        table.insert(text_parts, msg.content)
-      end
-
-      if had_thinking then
-        M.append_seperator 'Thinking...'
-        M.append_newline()
-      end
-
-      if #text_parts > 0 then
+        -- Plain text response
         M.append_seperator 'Pi'
         M.append_newline()
-        M.append_text(table.concat(text_parts, '\n'))
+        M.append_text(msg.content)
         M.append_newline()
       end
 
