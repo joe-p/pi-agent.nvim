@@ -6,6 +6,7 @@ local buf = nil
 local opts = {}
 
 local line_width = 63
+local diff_ns = vim.api.nvim_create_namespace('pi_chat_diff')
 
 function M.setup(config)
   opts = config
@@ -57,6 +58,7 @@ function M.clear()
     return
   end
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, {})
+  vim.api.nvim_buf_clear_namespace(buf, diff_ns, 0, -1)
 end
 
 function M.append_seperator(text)
@@ -246,11 +248,161 @@ function M.append_info(info)
   M.append_lines { '', '-- ' .. info .. ' --', '' }
 end
 
+local function is_edit_tool_call(toolCall)
+  local args = toolCall.arguments
+  return type(args) == 'table' and type(args.path) == 'string' and type(args.edits) == 'table'
+end
+
+local function read_file_content(path)
+  local file = io.open(path, 'r')
+  if not file then
+    return nil
+  end
+  local content = file:read('*a')
+  file:close()
+  return content
+end
+
+local function apply_edits(content, edits)
+  local replacements = {}
+  for _, edit in ipairs(edits) do
+    local oldText = edit.oldText
+    local newText = edit.newText
+    if type(oldText) == 'string' and type(newText) == 'string' then
+      local idx = string.find(content, oldText, 1, true)
+      if idx then
+        table.insert(replacements, {
+          idx = idx,
+          len = #oldText,
+          text = newText,
+        })
+      end
+    end
+  end
+
+  -- Apply in reverse order to keep indices stable
+  table.sort(replacements, function(a, b)
+    return a.idx > b.idx
+  end)
+
+  for _, rep in ipairs(replacements) do
+    content = string.sub(content, 1, rep.idx - 1) .. rep.text .. string.sub(content, rep.idx + rep.len)
+  end
+
+  return content
+end
+
+local function reconstruct_original(content, edits)
+  local replacements = {}
+  for i = #edits, 1, -1 do
+    local edit = edits[i]
+    local oldText = edit.oldText
+    local newText = edit.newText
+    if type(oldText) == 'string' and type(newText) == 'string' then
+      local idx = string.find(content, newText, 1, true)
+      if idx then
+        table.insert(replacements, {
+          idx = idx,
+          len = #newText,
+          text = oldText,
+        })
+      end
+    end
+  end
+
+  table.sort(replacements, function(a, b)
+    return a.idx > b.idx
+  end)
+
+  for _, rep in ipairs(replacements) do
+    content = string.sub(content, 1, rep.idx - 1) .. rep.text .. string.sub(content, rep.idx + rep.len)
+  end
+
+  return content
+end
+
+local function generate_edit_diff(path, edits)
+  local full_path = vim.fn.fnamemodify(path, ':p')
+  local current_content = read_file_content(full_path) or ''
+
+  local old_content, new_content
+  local first_edit = edits[1]
+  local first_old = first_edit and first_edit.oldText
+
+  if first_old and string.find(current_content, first_old, 1, true) then
+    -- File is in pre-edit state
+    old_content = current_content
+    new_content = apply_edits(current_content, edits)
+  elseif first_edit and first_edit.newText and string.find(current_content, first_edit.newText, 1, true) then
+    -- File already has edits applied; reconstruct original
+    new_content = current_content
+    old_content = reconstruct_original(current_content, edits)
+  else
+    -- Can't determine file state
+    return nil
+  end
+
+  local diff = vim.diff(old_content, new_content, {
+    result_type = 'unified',
+    ctxlen = 3,
+  })
+
+  -- vim.diff returns empty string when there are no differences
+  if diff == '' then
+    return nil
+  end
+
+  return diff
+end
+
+local function render_diff_lines(lines)
+  local start_line = vim.api.nvim_buf_line_count(buf) - 1
+  M.append_lines(lines)
+
+  for i, line in ipairs(lines) do
+    local line_idx = start_line + i - 1
+    local prefix = string.sub(line, 1, 1)
+    if prefix == '+' then
+      vim.api.nvim_buf_set_extmark(buf, diff_ns, line_idx, 0, {
+        line_hl_group = 'DiffAdd',
+      })
+    elseif prefix == '-' then
+      vim.api.nvim_buf_set_extmark(buf, diff_ns, line_idx, 0, {
+        line_hl_group = 'DiffDelete',
+      })
+    elseif prefix == '@' then
+      vim.api.nvim_buf_set_extmark(buf, diff_ns, line_idx, 0, {
+        line_hl_group = 'DiffChange',
+      })
+    end
+  end
+end
+
 function M.append_toolcall_end(toolCall)
-  local content = vim.split(vim.json.encode(toolCall.arguments), '\n', { plain = true })
-  M.append_seperator('Calling: ' .. toolCall.name)
-  M.append_lines(content)
-  M.append_newline()
+  if is_edit_tool_call(toolCall) then
+    local args = toolCall.arguments
+    local diff = generate_edit_diff(args.path, args.edits)
+
+    M.append_seperator('Edit: ' .. args.path)
+    if diff then
+      local lines = vim.split(diff, '\n', { plain = true })
+      -- Remove trailing empty line from split
+      if lines[#lines] == '' then
+        table.remove(lines)
+      end
+      render_diff_lines(lines)
+    else
+      M.append_lines { '  (could not generate diff)' }
+      local content = vim.split(vim.json.encode(toolCall.arguments), '\n', { plain = true })
+      M.append_lines(content)
+    end
+    M.append_newline()
+  else
+    local content = vim.split(vim.json.encode(toolCall.arguments), '\n', { plain = true })
+    M.append_seperator('Calling: ' .. toolCall.name)
+    M.append_lines(content)
+    M.append_newline()
+  end
 end
 
 -- Extract text string from message content (handles both string and table formats)
