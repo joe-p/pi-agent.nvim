@@ -47,7 +47,7 @@ function M.create()
   end
 
   local close_key = opts.keymaps and opts.keymaps.close or 'q'
-  vim.api.nvim_buf_set_keymap(buf, 'n', close_key, ':PiToggle', { noremap = true, silent = true })
+  vim.api.nvim_buf_set_keymap(buf, 'n', close_key, '<cmd>PiToggle<CR>', { noremap = true, silent = true })
 
   return buf
 end
