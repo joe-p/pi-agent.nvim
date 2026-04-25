@@ -120,7 +120,6 @@ function M.handle_message_update(msg)
     M.append_text(event.delta)
   elseif event_type == 'thinking_end' then
     M.append_newline()
-    M.append_seperator 'End of thought'
   elseif event_type == 'toolcall_start' then
   elseif event_type == 'toolcall_delta' then
   elseif event_type == 'toolcall_end' then
@@ -134,15 +133,15 @@ function M.handle_message_update(msg)
   end
 end
 
-function M.append_content_between_lines(header, text, footer)
+function M.append_content_between_lines(header, text)
   local content = vim.split(text, '\n', { plain = true })
   M.append_seperator(header)
   M.append_lines(content)
-  M.append_seperator(footer)
 end
 
 function M.add_user_message(text)
   M.append_content_between_lines('User', text)
+  M.append_newline()
 end
 
 function M.append_text(text)
@@ -216,7 +215,6 @@ function M.append_tool_start(toolName, args)
 end
 
 function M.append_tool_end(_, result, isError)
-  local footer = isError and 'Error' or 'End'
   local content = {}
 
   if result and result.content then
@@ -229,16 +227,8 @@ function M.append_tool_end(_, result, isError)
     end
   end
 
-  -- Start with empty line
-  local lines = { '' }
-
-  -- Add content lines
-  for _, line in ipairs(content) do
-    table.insert(lines, line)
-  end
-
-  M.append_lines(lines)
-  M.append_seperator(footer)
+  M.append_lines(content)
+  M.append_newline()
 end
 
 function M.append_error(err)
@@ -253,7 +243,7 @@ function M.append_toolcall_end(toolCall)
   local content = vim.split(vim.json.encode(toolCall.arguments), '\n', { plain = true })
   M.append_seperator('Calling: ' .. toolCall.name)
   M.append_lines(content)
-  M.append_seperator ''
+  M.append_newline()
 end
 
 return M
