@@ -37,7 +37,7 @@ function M.content_line(text)
 end
 
 function M.content(text)
-  string.gsub(text, '\n', '\n' .. style.left .. ' ')
+  string.gsub(text, '\r?\n', [[\n]] .. style.left .. ' ')
 end
 
 ---Create a box footer line
