@@ -21,6 +21,26 @@ function M.create()
   local existing_buf = vim.fn.bufexists('pi-chat://chat') ~= 0 and vim.fn.bufnr('pi-chat://chat') or -1
   if existing_buf ~= -1 and vim.api.nvim_buf_is_valid(existing_buf) then
     buf = existing_buf
+  else
+    buf = vim.api.nvim_create_buf(false, true)
+    pcall(vim.api.nvim_buf_set_name, buf, 'pi-chat://chat')
+    vim.api.nvim_set_option_value('filetype', 'pichat', { buf = buf })
+    vim.api.nvim_set_option_value('buftype', 'nofile', { buf = buf })
+    vim.api.nvim_set_option_value('bufhidden', 'hide', { buf = buf })
+    vim.api.nvim_set_option_value('swapfile', false, { buf = buf })
+    vim.api.nvim_set_option_value('modifiable', true, { buf = buf })
+  end
+
+  local close_key = opts.keymaps and opts.keymaps.close or 'q'
+  vim.api.nvim_buf_set_keymap(buf, 'n', close_key, ':PiToggle', { noremap = true, silent = true })
+
+  return buf
+end
+
+  -- Check if a buffer with this name already exists (e.g., from previous session)
+  local existing_buf = vim.fn.bufexists('pi-chat://chat') ~= 0 and vim.fn.bufnr('pi-chat://chat') or -1
+  if existing_buf ~= -1 and vim.api.nvim_buf_is_valid(existing_buf) then
+    buf = existing_buf
     return buf
   end
 

@@ -23,18 +23,17 @@ function M.create()
   local existing_buf = vim.fn.bufexists('pi-input://input') ~= 0 and vim.fn.bufnr('pi-input://input') or -1
   if existing_buf ~= -1 and vim.api.nvim_buf_is_valid(existing_buf) then
     buf = existing_buf
-    return buf
+  else
+    buf = vim.api.nvim_create_buf(false, true)
+    pcall(vim.api.nvim_buf_set_name, buf, 'pi-input://input')
+    vim.api.nvim_set_option_value('filetype', 'piinput', { buf = buf })
+    vim.api.nvim_set_option_value('buftype', 'acwrite', { buf = buf }) -- Allow writing
+    vim.api.nvim_set_option_value('bufhidden', 'hide', { buf = buf })
+    vim.api.nvim_set_option_value('swapfile', false, { buf = buf })
+    vim.api.nvim_set_option_value('modifiable', true, { buf = buf })
   end
 
-  buf = vim.api.nvim_create_buf(false, true)
-  pcall(vim.api.nvim_buf_set_name, buf, 'pi-input://input')
-  vim.api.nvim_set_option_value('filetype', 'piinput', { buf = buf })
-  vim.api.nvim_set_option_value('buftype', 'acwrite', { buf = buf }) -- Allow writing
-  vim.api.nvim_set_option_value('bufhidden', 'hide', { buf = buf })
-  vim.api.nvim_set_option_value('swapfile', false, { buf = buf })
-  vim.api.nvim_set_option_value('modifiable', true, { buf = buf })
-
-  -- Set up keymaps
+  -- Always set up keymaps (buffer-local keymaps need to be set each time)
   M.setup_keymaps()
 
   -- Prompt placeholder
