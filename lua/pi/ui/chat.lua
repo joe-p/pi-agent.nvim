@@ -135,7 +135,6 @@ function M.add_user_message(text)
   local content = vim.split(text, '\n', { plain = true })
   local lines = box.box(content, {
     title = 'User',
-    style = box.styles.single,
     footer = '',
     compact = false,
   })
@@ -289,7 +288,6 @@ function M.append_tool_start(toolName, args)
   end
   local lines = box.box(content, {
     title = 'Tool: ' .. toolName,
-    style = box.styles.single_round,
     footer = nil,
     compact = true,
     empty_before = true,
@@ -313,15 +311,15 @@ function M.append_tool_end(_, result, isError)
   end
 
   -- Single empty line is the prefix line
-  local lines = { box.content_prefix(box.styles.single_round):sub(1, -2) }
+  local lines = { box.content_prefix():sub(1, -2) }
 
   -- Add content lines with proper prefix
   for _, line in ipairs(content) do
-    table.insert(lines, box.content_line(line, box.styles.single_round))
+    table.insert(lines, box.content_line(line))
   end
 
   -- Add footer
-  table.insert(lines, box.footer(footer, box.styles.single_round))
+  table.insert(lines, box.footer(footer))
   table.insert(lines, '')
 
   M.append_lines(lines)
@@ -330,7 +328,6 @@ end
 function M.append_error(err)
   local lines = box.box(err, {
     title = 'Error',
-    style = box.styles.single,
     footer = '',
     compact = true,
   })
@@ -344,7 +341,6 @@ end
 function M.append_toolcall_end(toolCall)
   local lines = box.box(vim.json.encode(toolCall.arguments), {
     title = 'Calling: ' .. toolCall.name,
-    style = box.styles.single_round,
     footer = '',
     compact = true,
   })
