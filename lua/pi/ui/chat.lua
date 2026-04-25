@@ -253,6 +253,23 @@ function M.append_toolcall_end(toolCall)
   M.append_newline()
 end
 
+-- Extract text string from message content (handles both string and table formats)
+local function extract_text(content)
+  if type(content) == 'string' then
+    return content
+  elseif type(content) == 'table' then
+    -- Content is an array of content blocks
+    local texts = {}
+    for _, block in ipairs(content) do
+      if block.type == 'text' and block.text then
+        table.insert(texts, block.text)
+      end
+    end
+    return table.concat(texts, '\n')
+  end
+  return ''
+end
+
 -- Render historical messages from a session
 function M.render_history(messages)
   if not messages or #messages == 0 then
@@ -261,7 +278,7 @@ function M.render_history(messages)
 
   for _, msg in ipairs(messages) do
     if msg.role == 'user' then
-      M.add_user_message(msg.content)
+      M.add_user_message(extract_text(msg.content))
     elseif msg.role == 'assistant' then
       -- Render assistant message
       local text_parts = {}
@@ -269,13 +286,15 @@ function M.render_history(messages)
 
       if type(msg.content) == 'table' then
         for _, part in ipairs(msg.content) do
-          if part.type == 'text' then
+          if part.type == 'text' and part.text then
             table.insert(text_parts, part.text)
           elseif part.type == 'thinking' then
             had_thinking = true
           elseif part.type == 'toolCall' then
             -- Show tool call
             M.append_toolcall_end(part)
+          elseif part.type == 'image' then
+            -- Skip images in history
           end
         end
       elseif type(msg.content) == 'string' then
