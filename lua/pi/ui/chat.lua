@@ -356,7 +356,7 @@ local function generate_edit_diff(path, edits)
 end
 
 local function render_diff_lines(lines)
-  local start_line = vim.api.nvim_buf_line_count(buf) - 1
+  local start_line = vim.api.nvim_buf_line_count(buf)
   M.append_lines(lines)
 
   for i, line in ipairs(lines) do
