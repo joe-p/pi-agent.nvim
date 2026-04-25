@@ -63,9 +63,7 @@ function M.render_message(msg)
   local msg_type = msg.type
 
   if msg_type == 'agent_start' then
-    M.append_spinner 'Thinking...'
   elseif msg_type == 'agent_end' then
-    M.finish_spinner()
     -- Render final messages if available
     if msg.messages then
       for _, m in ipairs(msg.messages) do
@@ -269,16 +267,6 @@ function M.scroll_to_bottom()
       vim.api.nvim_win_set_cursor(win, { line_count, 0 })
     end
   end
-end
-
-function M.append_spinner(text)
-  -- Start a timer to animate spinner
-  -- (Simplified for now)
-  M.append_lines(box.info_line(text))
-end
-
-function M.finish_spinner()
-  -- Stop spinner animation
 end
 
 function M.append_tool_start(toolName, args)
