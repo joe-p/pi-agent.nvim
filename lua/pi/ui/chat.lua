@@ -116,6 +116,7 @@ function M.handle_message_update(msg)
     M.append_text(event.delta)
   elseif event_type == 'thinking_start' then
     M.append_seperator 'Thinking...'
+    M.append_newline()
   elseif event_type == 'thinking_delta' then
     M.append_text(event.delta)
   elseif event_type == 'thinking_end' then
@@ -126,6 +127,7 @@ function M.handle_message_update(msg)
     M.append_toolcall_end(event.toolCall)
   elseif event_type == 'text_start' then
     M.append_seperator 'Pi'
+    M.append_newline()
   elseif event_type == 'text_end' then
     -- no-op, handled in delta
   else
