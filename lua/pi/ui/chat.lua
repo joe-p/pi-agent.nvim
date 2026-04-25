@@ -5,6 +5,7 @@ local M = {}
 local buf = nil
 local ns_id = vim.api.nvim_create_namespace 'pi-chat'
 local opts = {}
+local box = require 'pi.box'
 
 -- Track thinking text position for highlighting
 local thinking_active = false
@@ -131,24 +132,13 @@ function M.handle_message_update(msg)
 end
 
 function M.add_user_message(text)
-  local lines = {
-    '',
-    '┌─ User ────────────────────────────────────────────────────',
-    '│',
-  }
-
-  -- Split text into lines and indent
-  for _, line in ipairs(vim.split(text, '\n', { plain = true })) do
-    table.insert(lines, '│ ' .. line)
-  end
-
-  table.insert(lines, '│')
-  table.insert(
-    lines,
-    '└─────────────────────────────────────────────────────────────'
-  )
-  table.insert(lines, '')
-
+  local content = vim.split(text, '\n', { plain = true })
+  local lines = box.box(content, {
+    title = 'User',
+    style = box.styles.single,
+    footer = '',
+    compact = false,
+  })
   M.append_lines(lines)
 end
 
@@ -285,7 +275,7 @@ end
 function M.append_spinner(text)
   -- Start a timer to animate spinner
   -- (Simplified for now)
-  M.append_lines { '', '> ' .. text, '' }
+  M.append_lines(box.info_line(text))
 end
 
 function M.finish_spinner()
@@ -293,67 +283,71 @@ function M.finish_spinner()
 end
 
 function M.append_tool_start(toolName, args)
-  local header = string.format('╭─ Tool: %s ────', toolName)
-  local lines = { '', header }
-
-  -- Show args
+  local content = {}
   if args then
-    local args_str = vim.json.encode(args)
-    table.insert(lines, '│ ' .. args_str)
+    table.insert(content, vim.json.encode(args))
   end
-
-  table.insert(lines, '')
-
+  local lines = box.box(content, {
+    title = 'Tool: ' .. toolName,
+    style = box.styles.single_round,
+    footer = nil,
+    compact = true,
+    empty_before = true,
+    empty_after = false,
+  })
   M.append_lines(lines)
 end
 
 function M.append_tool_end(_, result, isError)
-  local lines = { '│' }
+  local footer = isError and 'Error' or 'End'
+  local content = {}
 
   if result and result.content then
-    for _, content in ipairs(result.content) do
-      if content.type == 'text' then
-        for _, line in ipairs(vim.split(content.text, '\n', { plain = true })) do
-          table.insert(lines, '│ ' .. line)
+    for _, item in ipairs(result.content) do
+      if item.type == 'text' then
+        for _, line in ipairs(vim.split(item.text, '\n', { plain = true })) do
+          table.insert(content, line)
         end
       end
     end
   end
 
-  table.insert(lines, string.format('╰─── %s ────', isError and 'Error' or 'End'))
+  -- Single empty line is the prefix line
+  local lines = { box.content_prefix(box.styles.single_round):sub(1, -2) }
+
+  -- Add content lines with proper prefix
+  for _, line in ipairs(content) do
+    table.insert(lines, box.content_line(line, box.styles.single_round))
+  end
+
+  -- Add footer
+  table.insert(lines, box.footer(footer, box.styles.single_round))
   table.insert(lines, '')
 
   M.append_lines(lines)
 end
 
 function M.append_error(err)
-  local lines = {
-    '',
-    '┌─ Error ─────────────────────────────────────────────────────',
-    '│ ' .. err,
-    '└─────────────────────────────────────────────────────────────',
-    '',
-  }
+  local lines = box.box(err, {
+    title = 'Error',
+    style = box.styles.single,
+    footer = '',
+    compact = true,
+  })
   M.append_lines(lines)
 end
 
 function M.append_info(info)
-  local lines = {
-    '',
-    '-- ' .. info .. ' --',
-    '',
-  }
-  M.append_lines(lines)
+  M.append_lines(box.info_line(info))
 end
 
 function M.append_toolcall_end(toolCall)
-  local lines = {
-    '',
-    string.format('╭─ Calling: %s ────', toolCall.name),
-    '│ ' .. vim.json.encode(toolCall.arguments),
-    '└────────────────────────────────────────────────────────────────',
-    '',
-  }
+  local lines = box.box(vim.json.encode(toolCall.arguments), {
+    title = 'Calling: ' .. toolCall.name,
+    style = box.styles.single_round,
+    footer = '',
+    compact = true,
+  })
   M.append_lines(lines)
 end
 
