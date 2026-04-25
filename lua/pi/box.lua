@@ -20,7 +20,7 @@ local default_width = 63 -- Default width for consistent box sizes
 function M.header(title)
   local title_part = '─ ' .. title .. ' '
   local remaining = default_width - #title_part - 1
-  return style.top .. title_part .. string.rep(style.right, remaining) .. '\n' .. style.left
+  return style.top .. title_part .. string.rep(style.right, remaining)
 end
 
 ---Create the left border prefix for content lines
