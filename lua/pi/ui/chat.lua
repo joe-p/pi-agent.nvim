@@ -110,8 +110,12 @@ function M.handle_message_update(msg)
 
   if event_type == 'text_delta' then
     M.append_text(event.delta)
+  elseif event_type == 'thinking_start' then
+    box.header 'Thinking...'
   elseif event_type == 'thinking_delta' then
-    M.append_thinking(event.delta)
+    box.content_lines(event.delta)
+  elseif event_type == 'thinking_end' then
+    box.footer 'End of thought'
   elseif event_type == 'toolcall_start' then
   elseif event_type == 'toolcall_delta' then
   elseif event_type == 'toolcall_end' then
@@ -119,10 +123,6 @@ function M.handle_message_update(msg)
   elseif event_type == 'text_start' then
     -- no-op, handled in delta
   elseif event_type == 'text_end' then
-    -- no-op, handled in delta
-  elseif event_type == 'thinking_start' then
-    -- no-op, handled in delta
-  elseif event_type == 'thinking_end' then
     -- no-op, handled in delta
   else
     vim.notify('[pi-agent]: unknown event type: ' .. event_type .. ' ' .. vim.inspect(event), vim.log.levels.WARN)

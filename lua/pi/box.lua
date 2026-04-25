@@ -36,6 +36,23 @@ function M.content_line(text)
   return M.content_prefix() .. text
 end
 
+function M.content_lines(content)
+  local lines = {}
+
+  if type(content) == 'string' then
+    content = { content }
+  end
+
+  for _, line in ipairs(content) do
+    -- Split multiline strings
+    for _, subline in ipairs(vim.split(line, '\n', { plain = true })) do
+      table.insert(lines, M.content_line(subline))
+    end
+  end
+
+  return lines.concat '\n'
+end
+
 ---Create a box footer line
 ---@param footer string|nil The footer text (optional)
 ---@return string The formatted footer line
