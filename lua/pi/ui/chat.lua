@@ -176,69 +176,6 @@ function M.append_text(text)
   end
 end
 
-function M.append_thinking(text)
-  if not text or text == '' then
-    return
-  end
-
-  -- Handle the start of thinking block
-  if not thinking_active then
-    local line_count = vim.api.nvim_buf_line_count(buf)
-    local last_line = vim.api.nvim_buf_get_lines(buf, line_count - 1, line_count, false)[1] or ''
-
-    -- Start fresh - if last line isn't empty, add indicator on new line
-    if last_line ~= '' then
-      M.append_lines { '' }
-      line_count = line_count + 1
-    end
-
-    -- Show thinking indicator
-    M.append_lines { '(*thinking*) ' }
-
-    -- Track where thinking content starts (after indicator)
-    thinking_start_line = line_count
-    thinking_start_col = 13 -- length of "(*thinking*) "
-    thinking_active = true
-  end
-
-  -- Get position before appending
-  local line_count = vim.api.nvim_buf_line_count(buf)
-  local last_line = vim.api.nvim_buf_get_lines(buf, line_count - 1, line_count, false)[1] or ''
-
-  -- Handle newlines in thinking text
-  if text:find '\n' then
-    local parts = vim.split(text, '\n', { plain = true })
-    local lines_to_set = { last_line .. parts[1] }
-    for i = 2, #parts do
-      table.insert(lines_to_set, parts[i])
-    end
-    vim.api.nvim_buf_set_lines(buf, line_count - 1, line_count, false, lines_to_set)
-  else
-    -- Simple append
-    vim.api.nvim_buf_set_lines(buf, line_count - 1, line_count, false, { last_line .. text })
-  end
-
-  -- Apply PiThinking highlight to all thinking content
-  local new_line_count = vim.api.nvim_buf_line_count(buf)
-  for i = thinking_start_line, new_line_count - 1 do
-    if i == thinking_start_line then
-      vim.api.nvim_buf_add_highlight(buf, ns_id, 'PiThinking', i, thinking_start_col, -1)
-    else
-      vim.api.nvim_buf_add_highlight(buf, ns_id, 'PiThinking', i, 0, -1)
-    end
-  end
-end
-
-function M.finish_thinking()
-  if thinking_active then
-    -- Add blank line after thinking ends
-    M.append_lines { '', '' }
-    thinking_active = false
-    thinking_start_line = nil
-    thinking_start_col = nil
-  end
-end
-
 function M.append_newline()
   M.append_lines { '' }
 end
