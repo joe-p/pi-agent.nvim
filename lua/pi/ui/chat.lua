@@ -110,6 +110,7 @@ function M.render_message(msg)
     M.append_tool_start(msg.toolName, msg.args)
   elseif msg_type == 'tool_execution_update' then
   elseif msg_type == 'tool_execution_end' then
+    M.append_text(vim.inspect(msg))
     M.append_tool_end(msg.toolCallId, msg.result, msg.isError)
   elseif msg_type == 'error' or msg_type == 'extension_error' then
     M.append_error(msg.error or 'Unknown error')
@@ -245,19 +246,17 @@ function M.append_tool_start(toolName, args)
 end
 
 function M.append_tool_end(toolCallId, result, isError)
-  local entry = active_renderers[toolCallId]
-  if entry then
-    active_renderers[toolCallId] = nil
-    entry.renderer.result {
-      chat = M,
-      toolCallId = toolCallId,
-      result = result,
-      isError = isError,
-      toolCall = entry.toolCall,
-    }
-    return
-  end
-
+  -- if M.tool_renderers.renderer[]  then
+  --   entry.renderer.result {
+  --     chat = M,
+  --     toolCallId = toolCallId,
+  --     result = result,
+  --     isError = isError,
+  --     toolCall = entry.toolCall,
+  --   }
+  --   return
+  -- end
+  --
   local content = {}
 
   if result and result.content then
@@ -428,29 +427,6 @@ M.tool_renderers['edit'] = {
     ctx.chat.append_newline()
   end,
 }
-
-local function find_renderer(toolCall)
-  return M.tool_renderers[toolCall.name]
-end
-
-function M.append_toolcall_end(toolCall)
-  local renderer = find_renderer(toolCall)
-  if renderer then
-    if toolCall.id then
-      active_renderers[toolCall.id] = { renderer = renderer, toolCall = toolCall }
-    end
-    renderer.call {
-      chat = M,
-      toolCall = toolCall,
-    }
-    return
-  end
-
-  local content = vim.split(vim.json.encode(toolCall.arguments), '\n', { plain = true })
-  M.append_seperator('Calling: ' .. toolCall.name)
-  M.append_lines(content)
-  M.append_newline()
-end
 
 -- Extract text string from message content (handles both string and table formats)
 local function extract_text(content)
