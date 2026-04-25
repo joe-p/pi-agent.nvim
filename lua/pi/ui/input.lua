@@ -23,7 +23,7 @@ function M.create()
   end
 
   -- Check if a buffer with this name already exists (e.g., from previous session)
-  local existing_buf = vim.fn.bufexists('pi-input://input') ~= 0 and vim.fn.bufnr('pi-input://input') or -1
+  local existing_buf = vim.fn.bufexists 'pi-input://input' ~= 0 and vim.fn.bufnr 'pi-input://input' or -1
   if existing_buf ~= -1 and vim.api.nvim_buf_is_valid(existing_buf) then
     buf = existing_buf
   else
@@ -144,7 +144,7 @@ function M.setup_keymaps()
     silent = true,
     callback = M.open_file_picker,
   })
-  
+
   -- Slash command help
   local help_key = opts.keymaps and opts.keymaps.slash_help or '?'
   vim.api.nvim_buf_set_keymap(buf, 'n', help_key, '', {
@@ -179,7 +179,7 @@ function M.send_message(steering)
     M.clear()
     return
   end
-  
+
   -- Other slash commands are handled by pi
   -- They are sent just like normal messages, pi parses and executes them
 
@@ -326,25 +326,25 @@ function M.show_session_picker()
   local session_dir = opts.session_dir
   if not session_dir then
     -- Default pi session directory with subdirs for each cwd
-    session_dir = vim.fn.expand('~/.pi/agent/sessions')
+    session_dir = vim.fn.expand '~/.pi/agent/sessions'
   end
-  
+
   if vim.fn.isdirectory(session_dir) == 0 then
     vim.notify('No session directory found: ' .. session_dir, vim.log.levels.WARN)
     return
   end
-  
+
   -- Find all .jsonl session files recursively in subdirectories
   local files = {}
   local scan_dir = vim.fs.dir and vim.fs.dir or vim.fn.glob
-  
+
   -- Use vim.fs.find if available (Neovim 0.10+)
   if vim.fs then
     for name, type in vim.fs.dir(session_dir) do
       if type == 'directory' then
         local subdir = session_dir .. '/' .. name
         for subname, subtype in vim.fs.dir(subdir) do
-          if subtype == 'file' and subname:match('%.jsonl$') then
+          if subtype == 'file' and subname:match '%.jsonl$' then
             table.insert(files, subdir .. '/' .. subname)
           end
         end
@@ -355,12 +355,12 @@ function M.show_session_picker()
     local pattern = session_dir .. '/*/*.jsonl'
     files = vim.fn.glob(pattern, false, true)
   end
-  
+
   if #files == 0 then
     vim.notify('No sessions found in ' .. session_dir, vim.log.levels.WARN)
     return
   end
-  
+
   -- Sort by modification time (newest first)
   table.sort(files, function(a, b)
     local stat_a = vim.loop.fs_stat and vim.loop.fs_stat(a) or nil
@@ -370,14 +370,14 @@ function M.show_session_picker()
     end
     return a > b
   end)
-  
+
   -- Create display items with decoded session names
   local items = {}
   for _, filepath in ipairs(files) do
     local dir_name = vim.fn.fnamemodify(vim.fn.fnamemodify(filepath, ':h'), ':t')
     local filename = vim.fn.fnamemodify(filepath, ':t:r')
     local decoded_path = decode_session_dir(dir_name)
-    
+
     local stat = vim.loop.fs_stat and vim.loop.fs_stat(filepath) or nil
     local size_str = ''
     if stat then
@@ -388,7 +388,7 @@ function M.show_session_picker()
         size_str = string.format(' (%d KB)', kb)
       end
     end
-    
+
     local display
     if filename == 'session' then
       -- Default session name
@@ -397,7 +397,7 @@ function M.show_session_picker()
       -- Named session
       display = decoded_path .. ' - ' .. filename .. size_str
     end
-    
+
     table.insert(items, {
       path = filepath,
       display = display,
@@ -405,7 +405,7 @@ function M.show_session_picker()
       filename = filename,
     })
   end
-  
+
   -- Show picker
   vim.ui.select(items, {
     prompt = 'Select session:',
@@ -416,7 +416,7 @@ function M.show_session_picker()
     if choice then
       -- Use the pi module to handle session switching with message loading
       local pi = require 'pi'
-      
+
       -- Send switch_session command
       rpc.send({ type = 'switch_session', sessionPath = choice.path }, function(response)
         if response and response.success then
