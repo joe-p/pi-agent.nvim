@@ -173,7 +173,14 @@ function M.send_message(steering)
     return
   end
 
-  -- Slash commands (messages starting with /) are handled by pi
+  -- Handle client-side slash commands
+  if text:match '^/sessions' then
+    M.show_session_picker()
+    M.clear()
+    return
+  end
+  
+  -- Other slash commands are handled by pi
   -- They are sent just like normal messages, pi parses and executes them
 
   -- Build command
@@ -299,6 +306,82 @@ function M.get_content()
   end
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   return table.concat(lines, '\n')
+end
+
+-- Show session picker and switch to selected session
+function M.show_session_picker()
+  -- Determine session directory
+  local session_dir = opts.session_dir
+  if not session_dir then
+    -- Default pi session directory
+    session_dir = vim.fn.expand('~/.pi/sessions')
+    if vim.fn.isdirectory(session_dir) == 0 then
+      vim.notify('No session directory found: ' .. session_dir, vim.log.levels.WARN)
+      return
+    end
+  end
+  
+  -- Find all .jsonl session files
+  local pattern = session_dir .. '/**/*.jsonl'
+  local files = vim.fn.glob(pattern, false, true)
+  
+  if #files == 0 then
+    vim.notify('No sessions found in ' .. session_dir, vim.log.levels.WARN)
+    return
+  end
+  
+  -- Sort by modification time (newest first)
+  table.sort(files, function(a, b)
+    local stat_a = vim.uv.fs_stat(a)
+    local stat_b = vim.uv.fs_stat(b)
+    if stat_a and stat_b then
+      return stat_a.mtime.sec > stat_b.mtime.sec
+    end
+    return a > b
+  end)
+  
+  -- Create display items with session names
+  local items = {}
+  for _, filepath in ipairs(files) do
+    local filename = vim.fn.fnamemodify(filepath, ':t:r')
+    local stat = vim.uv.fs_stat(filepath)
+    local size_str = ''
+    if stat then
+      local kb = math.floor(stat.size / 1024)
+      if kb > 1024 then
+        size_str = string.format(' %.1f MB', kb / 1024)
+      else
+        size_str = string.format(' %d KB', kb)
+      end
+    end
+    
+    -- Try to get session name from the file
+    local display = filename .. size_str
+    
+    table.insert(items, {
+      path = filepath,
+      display = display,
+      filename = filename,
+    })
+  end
+  
+  -- Show picker
+  vim.ui.select(items, {
+    prompt = 'Select session:',
+    format_item = function(item)
+      return item.display
+    end,
+  }, function(choice)
+    if choice then
+      -- Clear current chat first
+      local ui = require 'pi.ui'
+      ui.clear_chat()
+      
+      -- Send switch_session command
+      rpc.send({ type = 'switch_session', sessionPath = choice.path })
+      vim.notify('Switched to session: ' .. choice.filename, vim.log.levels.INFO)
+    end
+  end)
 end
 
 return M

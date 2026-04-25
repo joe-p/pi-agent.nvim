@@ -113,6 +113,14 @@ Commands are loaded from pi when the connection is established. They are execute
 - `/fix-tests` - Run a prompt template
 - `/skill:brave-search` - Use a skill
 
+### Client-Side Commands
+
+These commands are handled by the Neovim plugin:
+
+| Command | Description |
+|---------|-------------|
+| `/sessions` | List and switch between saved sessions |
+
 ## Architecture
 
 ```
