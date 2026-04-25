@@ -1,55 +1,53 @@
 -- pi.nvim Box utility module
--- Provides consistent box-drawing style for UI elements
+-- Provides simple horizontal line separators
 
 local M = {}
 
--- Box style configuration
-M.styles = {
-  single = { top = '┌', right = '─', bottom = '└', left = '│', corner_tr = '┐', corner_br = '┘', branch_down = '┬', branch_up = '┴' },
-  single_round = { top = '╭', right = '─', bottom = '╰', left = '│', corner_tr = '╮', corner_br = '╯', branch_down = '┬', branch_up = '┴' },
-  double = { top = '╔', right = '═', bottom = '╚', left = '║', corner_tr = '╗', corner_br = '╝', branch_down = '╦', branch_up = '╩' },
-  solid = { left = '▌', right = '▐' },
-}
+local default_width = 63 -- Default width for consistent line sizes
 
-local style = M.styles.single
-local default_width = 63 -- Default width for consistent box sizes
-
----Create a box header line with a title
+---Create a header line with a title
 ---@param title string The title to display in the header
 ---@return string The formatted header line
 function M.header(title)
-  local title_part = '─ ' .. title .. ' '
-  local remaining = default_width - #title_part - 1
-  return style.top .. title_part .. string.rep(style.right, remaining)
+  if title and title ~= '' then
+    local title_part = '─ ' .. title .. ' '
+    local remaining = default_width - #title_part
+    return title_part .. string.rep('─', remaining)
+  else
+    return string.rep('─', default_width)
+  end
 end
 
----Create the left border prefix for content lines
----@return string The left border character followed by a space
+---Create the content prefix (now just empty)
+---@return string Empty string
 function M.content_prefix()
-  return style.left .. ' '
+  return ''
 end
 
----Create a content line with left border
+---Create a content line (no prefix)
 ---@param text string The text content
----@return string The formatted content line
+---@return string The text as-is
 function M.content_line(text)
-  return M.content_prefix() .. text
+  return text
 end
 
+---Pass through content without modification
+---@param text string The text content
+---@return string The text as-is
 function M.content(text)
-  return table.concat(vim.split(text, '\n'), '\n' .. style.left .. ' ')
+  return text
 end
 
----Create a box footer line
+---Create a footer line
 ---@param footer string|nil The footer text (optional)
 ---@return string The formatted footer line
 function M.footer(footer)
   if footer and footer ~= '' then
     local footer_part = '─ ' .. footer .. ' '
-    local remaining = default_width - #footer_part - 1
-    return style.bottom .. footer_part .. string.rep(style.right, remaining)
+    local remaining = default_width - #footer_part
+    return footer_part .. string.rep('─', remaining)
   else
-    return style.bottom .. string.rep(style.right, default_width - 1)
+    return string.rep('─', default_width)
   end
 end
 
@@ -71,7 +69,7 @@ function M.box(content, opts)
 
   -- Empty line after header (if no empty_after is false, for compact boxes)
   if opts.compact ~= true then
-    table.insert(lines, M.content_prefix():sub(1, -2)) -- Just the border
+    table.insert(lines, '')
   end
 
   -- Content
@@ -88,7 +86,7 @@ function M.box(content, opts)
 
   -- Empty line before footer (if not compact)
   if opts.compact ~= true then
-    table.insert(lines, M.content_prefix():sub(1, -2)) -- Just the border
+    table.insert(lines, '')
   end
 
   -- Footer

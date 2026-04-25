@@ -231,12 +231,12 @@ function M.append_tool_end(_, result, isError)
     end
   end
 
-  -- Single empty line is the prefix line
-  local lines = { box.content_prefix():sub(1, -2) }
+  -- Start with empty line
+  local lines = { '' }
 
-  -- Add content lines with proper prefix
+  -- Add content lines
   for _, line in ipairs(content) do
-    table.insert(lines, box.content_line(line))
+    table.insert(lines, line)
   end
 
   -- Add footer
