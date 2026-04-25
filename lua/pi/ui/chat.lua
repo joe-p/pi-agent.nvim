@@ -111,11 +111,11 @@ function M.handle_message_update(msg)
     M.append_text(event.delta)
   elseif event_type == 'thinking_start' then
     M.append_text(box.header 'Thinking...')
-    M.append_text(box.content '\n')
+    M.append_text('\n')
   elseif event_type == 'thinking_delta' then
-    M.append_text(box.content(event.delta))
+    M.append_text(event.delta)
   elseif event_type == 'thinking_end' then
-    M.append_text(box.content '\n')
+    M.append_text('\n')
     M.append_text(box.footer 'End of thought')
   elseif event_type == 'toolcall_start' then
   elseif event_type == 'toolcall_delta' then

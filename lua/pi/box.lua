@@ -18,26 +18,6 @@ function M.header(title)
   end
 end
 
----Create the content prefix (now just empty)
----@return string Empty string
-function M.content_prefix()
-  return ''
-end
-
----Create a content line (no prefix)
----@param text string The text content
----@return string The text as-is
-function M.content_line(text)
-  return text
-end
-
----Pass through content without modification
----@param text string The text content
----@return string The text as-is
-function M.content(text)
-  return text
-end
-
 ---Create a footer line
 ---@param footer string|nil The footer text (optional)
 ---@return string The formatted footer line
@@ -80,7 +60,7 @@ function M.box(content, opts)
   for _, line in ipairs(content) do
     -- Split multiline strings
     for _, subline in ipairs(vim.split(line, '\n', { plain = true })) do
-      table.insert(lines, M.content_line(subline))
+      table.insert(lines, subline)
     end
   end
 
