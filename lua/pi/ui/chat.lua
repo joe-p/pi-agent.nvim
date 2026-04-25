@@ -280,43 +280,46 @@ function M.render_history(messages)
     if msg.role == 'user' then
       M.add_user_message(extract_text(msg.content))
     elseif msg.role == 'assistant' then
-      -- Render assistant message - process content blocks in order
-      local text_parts = {}
-      local thinking_parts = {}
-      local tool_calls = {}
-
+      -- Render assistant message - process content blocks in document order
       if type(msg.content) == 'table' then
-        -- First pass: categorize blocks
+        local in_text_section = false
+
         for _, part in ipairs(msg.content) do
-          if part.type == 'text' and part.text then
-            table.insert(text_parts, part.text)
-          elseif part.type == 'thinking' and part.thinking then
-            table.insert(thinking_parts, part.thinking)
+          if part.type == 'text' then
+            -- Open a Pi section on first text block (or if not already open)
+            if not in_text_section then
+              M.append_seperator 'Pi'
+              M.append_newline()
+              in_text_section = true
+            end
+            if part.text and part.text ~= '' then
+              M.append_text(part.text)
+            end
+          elseif part.type == 'thinking' then
+            -- Close any open text section before thinking
+            if in_text_section then
+              M.append_newline()
+              in_text_section = false
+            end
+            M.append_seperator 'Thinking...'
+            M.append_newline()
+            if part.thinking and part.thinking ~= '' then
+              M.append_text(part.thinking)
+            end
+            M.append_newline()
           elseif part.type == 'toolCall' then
-            table.insert(tool_calls, part)
-          elseif part.type == 'image' then
-            -- Skip images in history
+            -- Close any open text section before tool call
+            if in_text_section then
+              M.append_newline()
+              in_text_section = false
+            end
+            M.append_toolcall_end(part)
           end
+          -- Skip image blocks
         end
 
-        -- Render thinking first (same as real-time)
-        if #thinking_parts > 0 then
-          M.append_seperator 'Thinking...'
-          M.append_newline()
-          M.append_text(table.concat(thinking_parts, '\n'))
-          M.append_newline()
-        end
-
-        -- Render tool calls
-        for _, tc in ipairs(tool_calls) do
-          M.append_toolcall_end(tc)
-        end
-
-        -- Render text response
-        if #text_parts > 0 then
-          M.append_seperator 'Pi'
-          M.append_newline()
-          M.append_text(table.concat(text_parts, '\n'))
+        -- Close trailing text section
+        if in_text_section then
           M.append_newline()
         end
       elseif type(msg.content) == 'string' then
@@ -326,15 +329,9 @@ function M.render_history(messages)
         M.append_text(msg.content)
         M.append_newline()
       end
-
-      -- Handle tool results
-      if msg.toolResults and #msg.toolResults > 0 then
-        for _, tr in ipairs(msg.toolResults) do
-          if tr.result then
-            M.append_tool_end(tr.toolCallId, tr.result, tr.isError)
-          end
-        end
-      end
+    elseif msg.role == 'toolResult' then
+      -- Tool result messages returned by get_messages
+      M.append_tool_end(msg.toolCallId, { content = msg.content }, msg.isError)
     end
   end
 
