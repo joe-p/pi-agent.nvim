@@ -7,6 +7,7 @@ local opts = {}
 
 local line_width = 63
 local diff_ns = vim.api.nvim_create_namespace('pi_chat_diff')
+local edit_tool_call_ids = {}
 
 function M.setup(config)
   opts = config
@@ -223,7 +224,12 @@ function M.append_tool_start(toolName, args)
   end
 end
 
-function M.append_tool_end(_, result, isError)
+function M.append_tool_end(toolCallId, result, isError)
+  if toolCallId and edit_tool_call_ids[toolCallId] then
+    edit_tool_call_ids[toolCallId] = nil
+    return
+  end
+
   local content = {}
 
   if result and result.content then
@@ -380,6 +386,10 @@ end
 
 function M.append_toolcall_end(toolCall)
   if is_edit_tool_call(toolCall) then
+    if toolCall.id then
+      edit_tool_call_ids[toolCall.id] = true
+    end
+
     local args = toolCall.arguments
     local diff = generate_edit_diff(args.path, args.edits)
 
