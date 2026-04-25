@@ -56,9 +56,11 @@ end
 function M.append_seperator(text)
   if text and text ~= '' then
     local part = '─ ' .. text .. ' '
-    return part .. string.rep('─', line_width - #part)
+    M.append_lines { part .. string.rep('─', line_width - #part) }
+  else
+    M.append_lines { string.rep('─', line_width) }
   end
-  M.append_lines { string.rep('─', line_width), '\n' }
+  M.append_newline()
 end
 
 -- Render a message event from pi
@@ -117,7 +119,7 @@ function M.handle_message_update(msg)
   elseif event_type == 'thinking_delta' then
     M.append_text(event.delta)
   elseif event_type == 'thinking_end' then
-    M.append_text '\n'
+    M.append_newline()
     M.append_seperator 'End of thought'
   elseif event_type == 'toolcall_start' then
   elseif event_type == 'toolcall_delta' then
@@ -136,7 +138,6 @@ function M.append_content_between_lines(header, text, footer)
   local content = vim.split(text, '\n', { plain = true })
   M.append_seperator(header)
   M.append_lines(content)
-  M.append_newline()
   M.append_seperator(footer)
 end
 
@@ -244,11 +245,15 @@ function M.append_error(err)
   M.append_content_between_lines('Error', err)
 end
 
+function M.append_info(info)
+  M.append_lines { '', '-- ' .. info .. ' --', '' }
+end
+
 function M.append_toolcall_end(toolCall)
   local content = vim.split(vim.json.encode(toolCall.arguments), '\n', { plain = true })
   M.append_seperator('Calling: ' .. toolCall.name)
   M.append_lines(content)
-  M.append_lines { M.append_seperator '' }
+  M.append_seperator ''
 end
 
 return M
