@@ -13,7 +13,8 @@ function M.handle_request(msg)
 
   -- Fire-and-forget methods
   if method == 'notify' then
-    vim.notify(msg.message, M.get_log_level(msg.notifyType))
+    local chat = require 'pi.ui.chat'
+    chat.append_content_with_header('Notify', msg.message)
     return
   end
 
