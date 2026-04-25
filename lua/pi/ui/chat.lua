@@ -77,7 +77,6 @@ function M.render_message(msg)
   elseif msg_type == 'message_update' then
     M.handle_message_update(msg)
   elseif msg_type == 'message_end' then
-    M.finish_thinking()
     M.append_newline()
   elseif msg_type == 'tool_execution_start' then
     M.append_tool_start(msg.toolName, msg.args)
@@ -142,11 +141,6 @@ end
 function M.append_text(text)
   if not text or text == '' then
     return
-  end
-
-  -- Finish thinking if we're switching to regular text
-  if thinking_active then
-    M.finish_thinking()
   end
 
   -- Handle newlines in the text
