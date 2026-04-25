@@ -7,7 +7,20 @@ local opts = {}
 
 local line_width = 63
 local diff_ns = vim.api.nvim_create_namespace('pi_chat_diff')
-local edit_tool_call_ids = {}
+
+-- Map of tool names to renderer descriptor tables.
+-- Each descriptor has:
+--   call   = function(ctx)   -- ctx: { chat, toolCall }
+--   result = function(ctx)   -- ctx: { chat, toolCallId, result, isError }
+M.tool_renderers = {}
+
+-- Tracks tool call IDs that have an active custom renderer.
+-- Maps toolCallId -> renderer descriptor.
+local active_renderers = {}
+
+function M.register_tool_renderer(tool_name, descriptor)
+  M.tool_renderers[tool_name] = descriptor
+end
 
 function M.setup(config)
   opts = config
@@ -60,6 +73,7 @@ function M.clear()
   end
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, {})
   vim.api.nvim_buf_clear_namespace(buf, diff_ns, 0, -1)
+  active_renderers = {}
 end
 
 function M.append_seperator(text)
@@ -225,8 +239,15 @@ function M.append_tool_start(toolName, args)
 end
 
 function M.append_tool_end(toolCallId, result, isError)
-  if toolCallId and edit_tool_call_ids[toolCallId] then
-    edit_tool_call_ids[toolCallId] = nil
+  local renderer = active_renderers[toolCallId]
+  if renderer then
+    active_renderers[toolCallId] = nil
+    renderer.result({
+      chat = M,
+      toolCallId = toolCallId,
+      result = result,
+      isError = isError,
+    })
     return
   end
 
@@ -252,11 +273,6 @@ end
 
 function M.append_info(info)
   M.append_lines { '', '-- ' .. info .. ' --', '' }
-end
-
-local function is_edit_tool_call(toolCall)
-  local args = toolCall.arguments
-  return type(args) == 'table' and type(args.path) == 'string' and type(args.edits) == 'table'
 end
 
 local function read_file_content(path)
@@ -384,16 +400,12 @@ local function render_diff_lines(lines)
   end
 end
 
-function M.append_toolcall_end(toolCall)
-  if is_edit_tool_call(toolCall) then
-    if toolCall.id then
-      edit_tool_call_ids[toolCall.id] = true
-    end
-
-    local args = toolCall.arguments
+M.tool_renderers['edit'] = {
+  call = function(ctx)
+    local args = ctx.toolCall.arguments
     local diff = generate_edit_diff(args.path, args.edits)
 
-    M.append_seperator('Edit: ' .. args.path)
+    ctx.chat.append_seperator('Edit: ' .. args.path)
     if diff then
       local lines = vim.split(diff, '\n', { plain = true })
       -- Remove trailing empty line from split
@@ -402,17 +414,38 @@ function M.append_toolcall_end(toolCall)
       end
       render_diff_lines(lines)
     else
-      M.append_lines { '  (could not generate diff)' }
-      local content = vim.split(vim.json.encode(toolCall.arguments), '\n', { plain = true })
-      M.append_lines(content)
+      ctx.chat.append_lines { '  (could not generate diff)' }
+      local content = vim.split(vim.json.encode(args), '\n', { plain = true })
+      ctx.chat.append_lines(content)
     end
-    M.append_newline()
-  else
-    local content = vim.split(vim.json.encode(toolCall.arguments), '\n', { plain = true })
-    M.append_seperator('Calling: ' .. toolCall.name)
-    M.append_lines(content)
-    M.append_newline()
+    ctx.chat.append_newline()
+  end,
+  result = function(_ctx)
+    -- Suppress default result rendering; diff was already shown at call time
+  end,
+}
+
+local function find_renderer(toolCall)
+  return M.tool_renderers[toolCall.name]
+end
+
+function M.append_toolcall_end(toolCall)
+  local renderer = find_renderer(toolCall)
+  if renderer then
+    if toolCall.id then
+      active_renderers[toolCall.id] = renderer
+    end
+    renderer.call({
+      chat = M,
+      toolCall = toolCall,
+    })
+    return
   end
+
+  local content = vim.split(vim.json.encode(toolCall.arguments), '\n', { plain = true })
+  M.append_seperator('Calling: ' .. toolCall.name)
+  M.append_lines(content)
+  M.append_newline()
 end
 
 -- Extract text string from message content (handles both string and table formats)
