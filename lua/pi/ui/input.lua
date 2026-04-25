@@ -329,7 +329,6 @@ local function get_first_user_message(filepath)
 
   -- Read file line by line to find user message
   for line in f:lines() do
-
     local ok, data = pcall(vim.json.decode, line)
     if ok and data and data.message and data.message.role == 'user' and data.message.content then
       f:close()
@@ -431,7 +430,7 @@ function M.show_session_picker()
     local display
     if first_message then
       -- Show first user message as primary, path as secondary
-      display = first_message .. '  |  ' .. decoded_path .. size_str
+      display = first_message .. size_str
     elseif filename == 'session' then
       -- Default session name, no user message found
       display = decoded_path .. size_str
