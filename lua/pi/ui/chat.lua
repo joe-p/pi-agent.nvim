@@ -86,13 +86,10 @@ function M.append_seperator(text)
   end
 end
 
--- Render a message event from pi
-function M.render_message(msg)
-  local msg_type = msg.type
-
-  if msg_type == 'agent_start' then
-  elseif msg_type == 'agent_end' then
-    -- Render final messages if available
+-- Message type handlers: msg.type -> function(msg)
+local message_handlers = {
+  agent_start = function() end,
+  agent_end = function(msg)
     if msg.messages then
       for _, m in ipairs(msg.messages) do
         if m.errorMessage then
@@ -101,29 +98,72 @@ function M.render_message(msg)
         end
       end
     end
-  elseif msg_type == 'message_start' then
-  elseif msg_type == 'message_update' then
+  end,
+  message_start = function() end,
+  message_update = function(msg)
     M.handle_message_update(msg)
-  elseif msg_type == 'message_end' then
+  end,
+  message_end = function()
     M.append_newline()
-  elseif msg_type == 'tool_execution_start' then
+  end,
+  tool_execution_start = function(msg)
     M.append_tool_start(msg.toolName, msg.args)
-  elseif msg_type == 'tool_execution_update' then
-  elseif msg_type == 'tool_execution_end' then
+  end,
+  tool_execution_update = function() end,
+  tool_execution_end = function(msg)
     M.append_text(vim.inspect(msg))
     M.append_tool_end(msg.toolCallId, msg.result, msg.isError)
-  elseif msg_type == 'error' or msg_type == 'extension_error' then
+  end,
+  error = function(msg)
     M.append_error(msg.error or 'Unknown error')
-  elseif msg_type == 'compaction_start' then
+  end,
+  extension_error = function(msg)
+    M.append_error(msg.error or 'Unknown error')
+  end,
+  compaction_start = function()
     M.append_info 'Compacting conversation...'
-  elseif msg_type == 'compaction_end' then
+  end,
+  compaction_end = function()
     M.append_info 'Compaction complete'
-  elseif msg_type == 'queue_update' then
-    -- Optionally show queue status
-    -- M.append_info('Queue: ' .. tostring(#(msg.steering or {})) .. ' steering, ' .. tostring(#(msg.followUp or {})) .. ' followUp')
-  elseif msg_type == 'extension_ui_request' then
-    -- Handle extension UI requests
+  end,
+  queue_update = function() end,
+  extension_ui_request = function(msg)
     require('pi.extension_ui').handle_request(msg)
+  end,
+}
+
+-- Message update event handlers: event.type -> function(msg)
+local message_update_handlers = {
+  text_delta = function(msg)
+    M.append_text(msg.assistantMessageEvent.delta)
+  end,
+  thinking_start = function()
+    M.append_seperator 'Thinking...'
+    M.append_newline()
+  end,
+  thinking_delta = function(msg)
+    M.append_text(msg.assistantMessageEvent.delta)
+  end,
+  thinking_end = function()
+    M.append_newline()
+  end,
+  toolcall_start = function() end,
+  toolcall_delta = function() end,
+  toolcall_end = function(msg)
+    M.append_toolcall_end(msg.assistantMessageEvent.toolCall)
+  end,
+  text_start = function()
+    M.append_seperator 'Pi'
+    M.append_newline()
+  end,
+  text_end = function() end,
+}
+
+-- Render a message event from pi
+function M.render_message(msg)
+  local handler = message_handlers[msg.type]
+  if handler then
+    handler(msg)
   end
 end
 
@@ -134,28 +174,11 @@ function M.handle_message_update(msg)
     return
   end
 
-  local event_type = event.type
-
-  if event_type == 'text_delta' then
-    M.append_text(event.delta)
-  elseif event_type == 'thinking_start' then
-    M.append_seperator 'Thinking...'
-    M.append_newline()
-  elseif event_type == 'thinking_delta' then
-    M.append_text(event.delta)
-  elseif event_type == 'thinking_end' then
-    M.append_newline()
-  elseif event_type == 'toolcall_start' then
-  elseif event_type == 'toolcall_delta' then
-  elseif event_type == 'toolcall_end' then
-    M.append_toolcall_end(event.toolCall)
-  elseif event_type == 'text_start' then
-    M.append_seperator 'Pi'
-    M.append_newline()
-  elseif event_type == 'text_end' then
-    -- no-op, handled in delta
+  local handler = message_update_handlers[event.type]
+  if handler then
+    handler(msg)
   else
-    vim.notify('[pi-agent]: unknown event type: ' .. event_type .. ' ' .. vim.inspect(event), vim.log.levels.WARN)
+    vim.notify('[pi-agent]: unknown event type: ' .. event.type .. ' ' .. vim.inspect(event), vim.log.levels.WARN)
   end
 end
 
