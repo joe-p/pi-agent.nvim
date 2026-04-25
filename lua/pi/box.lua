@@ -50,7 +50,7 @@ function M.content_lines(content)
     end
   end
 
-  return lines.concat '\n'
+  return table.concat(lines, '\n')
 end
 
 ---Create a box footer line
