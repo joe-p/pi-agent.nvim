@@ -180,4 +180,10 @@ function M.clear()
   commands_by_name = {}
 end
 
+-- Setup function (called during initialization)
+function M.setup(config)
+  -- Commands module is mostly self-contained
+  -- Config can be extended for future command-related settings
+end
+
 return M
