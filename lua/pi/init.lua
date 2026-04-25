@@ -54,7 +54,7 @@ function M.setup(opts)
   vim.api.nvim_create_user_command('PiToggle', function()
     M.toggle()
   end, { desc = 'Toggle pi chat and input windows' })
-  
+
   vim.api.nvim_create_user_command('PiCommands', function()
     M.show_commands()
   end, { desc = 'Show slash commands' })
@@ -108,12 +108,12 @@ function M.start()
 
   -- Get initial state
   rpc.send { type = 'get_state' }
-  
+
   -- Load existing session messages
   vim.defer_fn(function()
     M.load_messages()
   end, 300)
-  
+
   -- Fetch available commands after short delay (ensure pi is ready)
   vim.defer_fn(function()
     session.fetch_commands(rpc)
@@ -129,7 +129,7 @@ function M.new_session()
   rpc.send { type = 'new_session' }
   ui.clear_chat()
   session.clear_history()
-  
+
   -- Refetch commands for new session
   vim.defer_fn(function()
     session.fetch_commands(rpc)
@@ -160,6 +160,7 @@ end
 function M.toggle()
   if not rpc.is_running() then
     M.start()
+    return
   end
 
   if ui.is_open() then
@@ -200,12 +201,12 @@ function M.load_session_messages(sessionPath)
   -- Clear current chat
   ui.clear_chat()
   session.clear_history()
-  
+
   -- Load messages from the new session
   vim.defer_fn(function()
     M.load_messages()
   end, 200)
-  
+
   -- Refetch commands for new session
   vim.defer_fn(function()
     session.fetch_commands(rpc)
