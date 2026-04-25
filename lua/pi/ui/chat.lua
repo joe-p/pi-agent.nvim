@@ -253,4 +253,60 @@ function M.append_toolcall_end(toolCall)
   M.append_newline()
 end
 
+-- Render historical messages from a session
+function M.render_history(messages)
+  if not messages or #messages == 0 then
+    return
+  end
+
+  for _, msg in ipairs(messages) do
+    if msg.role == 'user' then
+      M.add_user_message(msg.content)
+    elseif msg.role == 'assistant' then
+      -- Render assistant message
+      local text_parts = {}
+      local had_thinking = false
+
+      if type(msg.content) == 'table' then
+        for _, part in ipairs(msg.content) do
+          if part.type == 'text' then
+            table.insert(text_parts, part.text)
+          elseif part.type == 'thinking' then
+            had_thinking = true
+          elseif part.type == 'toolCall' then
+            -- Show tool call
+            M.append_toolcall_end(part)
+          end
+        end
+      elseif type(msg.content) == 'string' then
+        table.insert(text_parts, msg.content)
+      end
+
+      if had_thinking then
+        M.append_seperator 'Thinking...'
+        M.append_newline()
+      end
+
+      if #text_parts > 0 then
+        M.append_seperator 'Pi'
+        M.append_newline()
+        M.append_text(table.concat(text_parts, '\n'))
+        M.append_newline()
+      end
+
+      -- Handle tool results
+      if msg.toolResults and #msg.toolResults > 0 then
+        for _, tr in ipairs(msg.toolResults) do
+          if tr.result then
+            M.append_tool_end(tr.toolCallId, tr.result, tr.isError)
+          end
+        end
+      end
+    end
+  end
+
+  -- Scroll to bottom
+  M.scroll_to_bottom()
+end
+
 return M

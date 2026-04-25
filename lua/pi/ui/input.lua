@@ -414,13 +414,19 @@ function M.show_session_picker()
     end,
   }, function(choice)
     if choice then
-      -- Clear current chat first
-      local ui = require 'pi.ui'
-      ui.clear_chat()
+      -- Use the pi module to handle session switching with message loading
+      local pi = require 'pi'
       
       -- Send switch_session command
-      rpc.send({ type = 'switch_session', sessionPath = choice.path })
-      vim.notify('Switched to session: ' .. choice.cwd, vim.log.levels.INFO)
+      rpc.send({ type = 'switch_session', sessionPath = choice.path }, function(response)
+        if response and response.success then
+          -- Load messages and refresh
+          pi.load_session_messages(choice.path)
+          vim.notify('Switched to session: ' .. choice.cwd, vim.log.levels.INFO)
+        else
+          vim.notify('Failed to switch session', vim.log.levels.ERROR)
+        end
+      end)
     end
   end)
 end

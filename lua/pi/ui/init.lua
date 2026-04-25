@@ -151,6 +151,10 @@ function M.render_message(msg)
   chat.render_message(msg)
 end
 
+function M.render_messages(messages)
+  chat.render_history(messages)
+end
+
 function M.add_user_message(text)
   chat.add_user_message(text)
 end

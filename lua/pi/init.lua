@@ -109,10 +109,15 @@ function M.start()
   -- Get initial state
   rpc.send { type = 'get_state' }
   
+  -- Load existing session messages
+  vim.defer_fn(function()
+    M.load_messages()
+  end, 300)
+  
   -- Fetch available commands after short delay (ensure pi is ready)
   vim.defer_fn(function()
     session.fetch_commands(rpc)
-  end, 500)
+  end, 600)
 end
 
 function M.stop()
@@ -129,6 +134,17 @@ function M.new_session()
   vim.defer_fn(function()
     session.fetch_commands(rpc)
   end, 500)
+end
+
+-- Load and display messages from current session
+function M.load_messages()
+  rpc.send({ type = 'get_messages' }, function(response)
+    if response and response.success and response.data and response.data.messages then
+      local messages = response.data.messages
+      ui.render_messages(messages)
+      vim.notify(string.format('Loaded %d messages', #messages), vim.log.levels.INFO)
+    end
+  end)
 end
 
 function M.abort()
@@ -177,6 +193,23 @@ end
 -- Show slash commands help
 function M.show_commands()
   require('pi.commands').show_help()
+end
+
+-- Load messages after session switch
+function M.load_session_messages(sessionPath)
+  -- Clear current chat
+  ui.clear_chat()
+  session.clear_history()
+  
+  -- Load messages from the new session
+  vim.defer_fn(function()
+    M.load_messages()
+  end, 200)
+  
+  -- Refetch commands for new session
+  vim.defer_fn(function()
+    session.fetch_commands(rpc)
+  end, 500)
 end
 
 return M
