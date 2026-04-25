@@ -9,9 +9,12 @@ local opts = {}
 -- Require modules directly to avoid circular deps
 local rpc = require 'pi.rpc'
 local session = require 'pi.session'
+local commands = require 'pi.commands'
 
 function M.setup(config)
   opts = config
+  -- Setup slash commands
+  commands.setup(opts.commands)
 end
 
 function M.create()
@@ -141,6 +144,16 @@ function M.setup_keymaps()
     silent = true,
     callback = M.open_file_picker,
   })
+  
+  -- Slash command help
+  local help_key = opts.keymaps and opts.keymaps.slash_help or '?'
+  vim.api.nvim_buf_set_keymap(buf, 'n', help_key, '', {
+    noremap = true,
+    silent = true,
+    callback = function()
+      commands.show_help()
+    end,
+  })
 end
 
 function M.send_message(steering)
@@ -159,6 +172,9 @@ function M.send_message(steering)
   if text == '' then
     return
   end
+
+  -- Slash commands (messages starting with /) are handled by pi
+  -- They are sent just like normal messages, pi parses and executes them
 
   -- Build command
   local state = session.get_state()

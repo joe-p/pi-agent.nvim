@@ -18,7 +18,7 @@ function M.create()
   end
 
   -- Check if a buffer with this name already exists (e.g., from previous session)
-  local existing_buf = vim.fn.bufexists('pi-chat://chat') ~= 0 and vim.fn.bufnr('pi-chat://chat') or -1
+  local existing_buf = vim.fn.bufexists 'pi-chat://chat' ~= 0 and vim.fn.bufnr 'pi-chat://chat' or -1
   if existing_buf ~= -1 and vim.api.nvim_buf_is_valid(existing_buf) then
     buf = existing_buf
   else

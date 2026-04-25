@@ -54,6 +54,10 @@ function M.setup(opts)
   vim.api.nvim_create_user_command('PiToggle', function()
     M.toggle()
   end, { desc = 'Toggle pi chat and input windows' })
+  
+  vim.api.nvim_create_user_command('PiCommands', function()
+    M.show_commands()
+  end, { desc = 'Show slash commands' })
 end
 
 function M.start()
@@ -104,6 +108,11 @@ function M.start()
 
   -- Get initial state
   rpc.send { type = 'get_state' }
+  
+  -- Fetch available commands after short delay (ensure pi is ready)
+  vim.defer_fn(function()
+    session.fetch_commands(rpc)
+  end, 500)
 end
 
 function M.stop()
@@ -114,6 +123,12 @@ end
 function M.new_session()
   rpc.send { type = 'new_session' }
   ui.clear_chat()
+  session.clear_history()
+  
+  -- Refetch commands for new session
+  vim.defer_fn(function()
+    session.fetch_commands(rpc)
+  end, 500)
 end
 
 function M.abort()
@@ -157,6 +172,11 @@ function M.send_message(text, opts)
 
   -- Add to UI immediately
   ui.add_user_message(text)
+end
+
+-- Show slash commands help
+function M.show_commands()
+  require('pi.commands').show_help()
 end
 
 return M

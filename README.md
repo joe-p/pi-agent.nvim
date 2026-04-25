@@ -8,6 +8,7 @@ A Neovim plugin for chatting with the [pi coding agent](https://github.com/badlo
 - 💬 Real-time streaming responses
 - 🛠️ Tool execution display
 - 📎 File references (`@file` support)
+- ⚡ Slash commands (`/clear`, `/help`, etc.)
 - 🎨 Extension UI protocol support (select, confirm, input, editor)
 - 🔧 Multiple layout options (horizontal, vertical, tab)
 
@@ -88,6 +89,29 @@ require('pi').send_message('Hello, write a function to reverse a string')
 | `<C-c><C-c>` | Abort operation |
 | `C-n` | New session |
 | `@` | File picker (insert file reference) |
+| `?` | Show slash commands help |
+
+## Slash Commands
+
+Slash commands are provided by the pi agent and its extensions. They are invoked by typing `/` followed by the command name.
+
+### Viewing Available Commands
+
+- Press `?` in the input buffer, or
+- Run `:PiCommands` to see a list of available commands
+
+Commands include:
+- **Extension commands** - Registered by extensions via `pi.registerCommand()`
+- **Prompt templates** - Loaded from `.pi/agent/prompts/*.md` files
+- **Skills** - Loaded from `.pi/agent/skills/`
+
+Commands are loaded from pi when the connection is established. They are executed by pi, not the Neovim plugin.
+
+### Example Usage
+
+- `/my-extension-command` - Run a custom extension command
+- `/fix-tests` - Run a prompt template
+- `/skill:brave-search` - Use a skill
 
 ## Architecture
 
@@ -112,6 +136,7 @@ lua/pi/
 ├── config.lua            # Configuration
 ├── rpc.lua               # JSONL RPC client
 ├── session.lua           # State management
+├── commands.lua          # Slash commands
 ├── extension_ui.lua      # Extension UI protocol
 └── ui/
     ├── init.lua          # UI orchestration
@@ -137,6 +162,7 @@ Basic functionality is implemented:
 - ✅ Tool execution rendering
 - ✅ User message display
 - ✅ Extension UI protocol (select, confirm, input, editor, notify)
+- ✅ Slash commands with custom command support
 - ❌ Images in chat (terminal dependent)
 - ⚠️ File picker (@ references) - basic implementation, needs polish
 
