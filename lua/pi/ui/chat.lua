@@ -125,7 +125,7 @@ function M.handle_message_update(msg)
   elseif event_type == 'toolcall_end' then
     M.append_toolcall_end(event.toolCall)
   elseif event_type == 'text_start' then
-    -- no-op, handled in delta
+    M.append_seperator 'Pi'
   elseif event_type == 'text_end' then
     -- no-op, handled in delta
   else
@@ -133,15 +133,14 @@ function M.handle_message_update(msg)
   end
 end
 
-function M.append_content_between_lines(header, text)
+function M.append_content_with_header(header, text)
   local content = vim.split(text, '\n', { plain = true })
   M.append_seperator(header)
   M.append_lines(content)
 end
 
 function M.add_user_message(text)
-  M.append_content_between_lines('User', text)
-  M.append_newline()
+  M.append_content_with_header('User', text)
 end
 
 function M.append_text(text)
@@ -232,7 +231,7 @@ function M.append_tool_end(_, result, isError)
 end
 
 function M.append_error(err)
-  M.append_content_between_lines('Error', err)
+  M.append_content_with_header('Error', err)
 end
 
 function M.append_info(info)
