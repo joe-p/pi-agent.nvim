@@ -127,6 +127,10 @@ function M.open_chat()
 end
 
 function M.toggle()
+  if not rpc.is_running() then
+    M.start()
+  end
+
   if ui.is_open() then
     ui.close()
   else
