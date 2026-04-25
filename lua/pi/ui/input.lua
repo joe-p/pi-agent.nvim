@@ -308,22 +308,53 @@ function M.get_content()
   return table.concat(lines, '\n')
 end
 
+-- Decode pi's session directory naming (--path--to--dir format)
+local function decode_session_dir(dirname)
+  -- Remove leading and trailing -- if present
+  local decoded = dirname:gsub('^%-%-', ''):gsub('%-%-$', '')
+  -- Replace -- with / to reconstruct path
+  decoded = decoded:gsub('%-%-', '/')
+  -- Handle special case for home directory
+  decoded = decoded:gsub('^/Users/([^/]+)', '~')
+  decoded = decoded:gsub('^/home/([^/]+)', '~')
+  return decoded
+end
+
 -- Show session picker and switch to selected session
 function M.show_session_picker()
-  -- Determine session directory
+  -- Determine session directory - pi stores sessions in ~/.pi/agent/sessions/
   local session_dir = opts.session_dir
   if not session_dir then
-    -- Default pi session directory
-    session_dir = vim.fn.expand('~/.pi/sessions')
-    if vim.fn.isdirectory(session_dir) == 0 then
-      vim.notify('No session directory found: ' .. session_dir, vim.log.levels.WARN)
-      return
-    end
+    -- Default pi session directory with subdirs for each cwd
+    session_dir = vim.fn.expand('~/.pi/agent/sessions')
   end
   
-  -- Find all .jsonl session files
-  local pattern = session_dir .. '/**/*.jsonl'
-  local files = vim.fn.glob(pattern, false, true)
+  if vim.fn.isdirectory(session_dir) == 0 then
+    vim.notify('No session directory found: ' .. session_dir, vim.log.levels.WARN)
+    return
+  end
+  
+  -- Find all .jsonl session files recursively in subdirectories
+  local files = {}
+  local scan_dir = vim.fs.dir and vim.fs.dir or vim.fn.glob
+  
+  -- Use vim.fs.find if available (Neovim 0.10+)
+  if vim.fs then
+    for name, type in vim.fs.dir(session_dir) do
+      if type == 'directory' then
+        local subdir = session_dir .. '/' .. name
+        for subname, subtype in vim.fs.dir(subdir) do
+          if subtype == 'file' and subname:match('%.jsonl$') then
+            table.insert(files, subdir .. '/' .. subname)
+          end
+        end
+      end
+    end
+  else
+    -- Fallback for older Neovim
+    local pattern = session_dir .. '/*/*.jsonl'
+    files = vim.fn.glob(pattern, false, true)
+  end
   
   if #files == 0 then
     vim.notify('No sessions found in ' .. session_dir, vim.log.levels.WARN)
@@ -332,35 +363,45 @@ function M.show_session_picker()
   
   -- Sort by modification time (newest first)
   table.sort(files, function(a, b)
-    local stat_a = vim.uv.fs_stat(a)
-    local stat_b = vim.uv.fs_stat(b)
+    local stat_a = vim.loop.fs_stat and vim.loop.fs_stat(a) or nil
+    local stat_b = vim.loop.fs_stat and vim.loop.fs_stat(b) or nil
     if stat_a and stat_b then
       return stat_a.mtime.sec > stat_b.mtime.sec
     end
     return a > b
   end)
   
-  -- Create display items with session names
+  -- Create display items with decoded session names
   local items = {}
   for _, filepath in ipairs(files) do
+    local dir_name = vim.fn.fnamemodify(vim.fn.fnamemodify(filepath, ':h'), ':t')
     local filename = vim.fn.fnamemodify(filepath, ':t:r')
-    local stat = vim.uv.fs_stat(filepath)
+    local decoded_path = decode_session_dir(dir_name)
+    
+    local stat = vim.loop.fs_stat and vim.loop.fs_stat(filepath) or nil
     local size_str = ''
     if stat then
       local kb = math.floor(stat.size / 1024)
       if kb > 1024 then
-        size_str = string.format(' %.1f MB', kb / 1024)
+        size_str = string.format(' (%.1f MB)', kb / 1024)
       else
-        size_str = string.format(' %d KB', kb)
+        size_str = string.format(' (%d KB)', kb)
       end
     end
     
-    -- Try to get session name from the file
-    local display = filename .. size_str
+    local display
+    if filename == 'session' then
+      -- Default session name
+      display = decoded_path .. size_str
+    else
+      -- Named session
+      display = decoded_path .. ' - ' .. filename .. size_str
+    end
     
     table.insert(items, {
       path = filepath,
       display = display,
+      cwd = decoded_path,
       filename = filename,
     })
   end
@@ -379,7 +420,7 @@ function M.show_session_picker()
       
       -- Send switch_session command
       rpc.send({ type = 'switch_session', sessionPath = choice.path })
-      vim.notify('Switched to session: ' .. choice.filename, vim.log.levels.INFO)
+      vim.notify('Switched to session: ' .. choice.cwd, vim.log.levels.INFO)
     end
   end)
 end
