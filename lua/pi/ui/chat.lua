@@ -3,14 +3,9 @@
 local M = {}
 
 local buf = nil
-local ns_id = vim.api.nvim_create_namespace 'pi-chat'
 local opts = {}
-local box = require 'pi.box'
 
--- Track thinking text position for highlighting
-local thinking_active = false
-local thinking_start_line = nil
-local thinking_start_col = nil
+local line_width = 63
 
 function M.setup(config)
   opts = config
@@ -56,6 +51,14 @@ function M.clear()
     return
   end
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, {})
+end
+
+function M.append_seperator(text)
+  if text and text ~= '' then
+    local part = '─ ' .. text .. ' '
+    return part .. string.rep('─', line_width - #part)
+  end
+  M.append_lines { string.rep('─', line_width), '\n' }
 end
 
 -- Render a message event from pi
@@ -110,14 +113,12 @@ function M.handle_message_update(msg)
   if event_type == 'text_delta' then
     M.append_text(event.delta)
   elseif event_type == 'thinking_start' then
-    M.append_text(box.header 'Thinking...')
-    M.append_text '\n'
+    M.append_seperator 'Thinking...'
   elseif event_type == 'thinking_delta' then
     M.append_text(event.delta)
   elseif event_type == 'thinking_end' then
     M.append_text '\n'
-    M.append_text(box.footer 'End of thought')
-    M.append_text '\n'
+    M.append_seperator 'End of thought'
   elseif event_type == 'toolcall_start' then
   elseif event_type == 'toolcall_delta' then
   elseif event_type == 'toolcall_end' then
@@ -131,14 +132,16 @@ function M.handle_message_update(msg)
   end
 end
 
-function M.add_user_message(text)
+function M.append_content_between_lines(header, text, footer)
   local content = vim.split(text, '\n', { plain = true })
-  local lines = box.box(content, {
-    title = 'User',
-    footer = '',
-    compact = false,
-  })
-  M.append_lines(lines)
+  M.append_seperator(header)
+  M.append_lines(content)
+  M.append_newline()
+  M.append_seperator(footer)
+end
+
+function M.add_user_message(text)
+  M.append_content_between_lines('User', text)
 end
 
 function M.append_text(text)
@@ -204,18 +207,11 @@ function M.scroll_to_bottom()
 end
 
 function M.append_tool_start(toolName, args)
-  local content = {}
+  M.append_newline()
+  M.append_seperator('Tool: ' .. toolName)
   if args then
-    table.insert(content, vim.json.encode(args))
+    M.append_lines { vim.json.encode(args) }
   end
-  local lines = box.box(content, {
-    title = 'Tool: ' .. toolName,
-    footer = nil,
-    compact = true,
-    empty_before = true,
-    empty_after = false,
-  })
-  M.append_lines(lines)
 end
 
 function M.append_tool_end(_, result, isError)
@@ -240,33 +236,19 @@ function M.append_tool_end(_, result, isError)
     table.insert(lines, line)
   end
 
-  -- Add footer
-  table.insert(lines, box.footer(footer))
-  table.insert(lines, '')
-
   M.append_lines(lines)
+  M.append_seperator(footer)
 end
 
 function M.append_error(err)
-  local lines = box.box(err, {
-    title = 'Error',
-    footer = '',
-    compact = true,
-  })
-  M.append_lines(lines)
-end
-
-function M.append_info(info)
-  M.append_lines(box.info_line(info))
+  M.append_content_between_lines('Error', err)
 end
 
 function M.append_toolcall_end(toolCall)
-  local lines = box.box(vim.json.encode(toolCall.arguments), {
-    title = 'Calling: ' .. toolCall.name,
-    footer = '',
-    compact = true,
-  })
-  M.append_lines(lines)
+  local content = vim.split(vim.json.encode(toolCall.arguments), '\n', { plain = true })
+  M.append_seperator('Calling: ' .. toolCall.name)
+  M.append_lines(content)
+  M.append_lines { M.append_seperator '' }
 end
 
 return M
