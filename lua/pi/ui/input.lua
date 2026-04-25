@@ -320,6 +320,36 @@ local function decode_session_dir(dirname)
   return decoded
 end
 
+-- Extract first user message from a JSONL session file
+local function get_first_user_message(filepath)
+  local f = io.open(filepath, 'r')
+  if not f then
+    return nil
+  end
+
+  -- Read first 50 lines to find user message (avoid reading huge files)
+  for _ = 1, 50 do
+    local line = f:read '*l'
+    if not line then
+      break
+    end
+
+    local ok, data = pcall(vim.json.decode, line)
+    if ok and data and data.role == 'user' and data.content then
+      f:close()
+      -- Truncate to reasonable length
+      local msg = data.content:gsub('\n', ' '):gsub('%s+', ' '):gsub('^%s+', ''):gsub('%s+$', '')
+      if #msg > 60 then
+        msg = msg:sub(1, 57) .. '...'
+      end
+      return msg ~= '' and msg or nil
+    end
+  end
+
+  f:close()
+  return nil
+end
+
 -- Show session picker and switch to selected session
 function M.show_session_picker()
   -- Determine session directory - pi stores sessions in ~/.pi/agent/sessions/
@@ -371,12 +401,15 @@ function M.show_session_picker()
     return a > b
   end)
 
-  -- Create display items with decoded session names
+  -- Create display items with first user message
   local items = {}
   for _, filepath in ipairs(files) do
     local dir_name = vim.fn.fnamemodify(vim.fn.fnamemodify(filepath, ':h'), ':t')
     local filename = vim.fn.fnamemodify(filepath, ':t:r')
     local decoded_path = decode_session_dir(dir_name)
+
+    -- Get first user message for display
+    local first_message = get_first_user_message(filepath)
 
     local stat = vim.loop.fs_stat and vim.loop.fs_stat(filepath) or nil
     local size_str = ''
@@ -390,11 +423,14 @@ function M.show_session_picker()
     end
 
     local display
-    if filename == 'session' then
-      -- Default session name
+    if first_message then
+      -- Show first user message as primary, path as secondary
+      display = first_message .. '  |  ' .. decoded_path .. size_str
+    elseif filename == 'session' then
+      -- Default session name, no user message found
       display = decoded_path .. size_str
     else
-      -- Named session
+      -- Named session, no user message found
       display = decoded_path .. ' - ' .. filename .. size_str
     end
 
