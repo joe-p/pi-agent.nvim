@@ -20,7 +20,7 @@ local default_width = 63 -- Default width for consistent box sizes
 function M.header(title)
   local title_part = '─ ' .. title .. ' '
   local remaining = default_width - #title_part - 1
-  return style.top .. title_part .. string.rep(style.right, remaining)
+  return style.top .. title_part .. string.rep(style.right, remaining) .. '\n' .. style.left
 end
 
 ---Create the left border prefix for content lines
@@ -36,21 +36,8 @@ function M.content_line(text)
   return M.content_prefix() .. text
 end
 
-function M.content_lines(content)
-  local lines = {}
-
-  if type(content) == 'string' then
-    content = { content }
-  end
-
-  for _, line in ipairs(content) do
-    -- Split multiline strings
-    for _, subline in ipairs(vim.split(line, '\n', { plain = true })) do
-      table.insert(lines, M.content_line(subline))
-    end
-  end
-
-  return table.concat(lines, '\n')
+function M.content(text)
+  string.gsub(text, '\n', '\n' .. style.left .. ' ')
 end
 
 ---Create a box footer line
