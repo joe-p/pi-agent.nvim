@@ -327,18 +327,24 @@ local function get_first_user_message(filepath)
     return nil
   end
 
-  -- Read first 50 lines to find user message (avoid reading huge files)
-  for _ = 1, 50 do
-    local line = f:read '*l'
-    if not line then
-      break
-    end
+  -- Read file line by line to find user message
+  for line in f:lines() do
 
     local ok, data = pcall(vim.json.decode, line)
-    if ok and data and data.role == 'user' and data.content then
+    if ok and data and data.message and data.message.role == 'user' and data.message.content then
       f:close()
-      -- Truncate to reasonable length
-      local msg = data.content:gsub('\n', ' '):gsub('%s+', ' '):gsub('^%s+', ''):gsub('%s+$', '')
+      -- Concatenate text from content array
+      local parts = {}
+      if type(data.message.content) == 'table' then
+        for _, part in ipairs(data.message.content) do
+          if part.type == 'text' and part.text then
+            table.insert(parts, part.text)
+          end
+        end
+      else
+        table.insert(parts, tostring(data.message.content))
+      end
+      local msg = table.concat(parts, ' '):gsub('\n', ' '):gsub('%s+', ' '):gsub('^%s+', ''):gsub('%s+$', '')
       if #msg > 60 then
         msg = msg:sub(1, 57) .. '...'
       end
