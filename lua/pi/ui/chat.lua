@@ -6,7 +6,7 @@ local buf = nil
 local opts = {}
 
 local line_width = 63
-local diff_ns = vim.api.nvim_create_namespace('pi_chat_diff')
+local diff_ns = vim.api.nvim_create_namespace 'pi_chat_diff'
 
 -- Map of tool names to renderer descriptor tables.
 -- Each descriptor has:
@@ -231,6 +231,12 @@ function M.scroll_to_bottom()
 end
 
 function M.append_tool_start(toolName, args)
+  -- If a call renderer is defined, it will handle display; skip raw tool start
+  local renderer = M.tool_renderers[toolName]
+  if renderer and renderer.call then
+    return
+  end
+
   M.append_newline()
   M.append_seperator('Tool: ' .. toolName)
   if args then
@@ -239,15 +245,16 @@ function M.append_tool_start(toolName, args)
 end
 
 function M.append_tool_end(toolCallId, result, isError)
-  local renderer = active_renderers[toolCallId]
-  if renderer then
+  local entry = active_renderers[toolCallId]
+  if entry then
     active_renderers[toolCallId] = nil
-    renderer.result({
+    entry.renderer.result {
       chat = M,
       toolCallId = toolCallId,
       result = result,
       isError = isError,
-    })
+      toolCall = entry.toolCall,
+    }
     return
   end
 
@@ -280,7 +287,7 @@ local function read_file_content(path)
   if not file then
     return nil
   end
-  local content = file:read('*a')
+  local content = file:read '*a'
   file:close()
   return content
 end
@@ -401,7 +408,7 @@ local function render_diff_lines(lines)
 end
 
 M.tool_renderers['edit'] = {
-  call = function(ctx)
+  result = function(ctx)
     local args = ctx.toolCall.arguments
     local diff = generate_edit_diff(args.path, args.edits)
 
@@ -420,9 +427,6 @@ M.tool_renderers['edit'] = {
     end
     ctx.chat.append_newline()
   end,
-  result = function(_ctx)
-    -- Suppress default result rendering; diff was already shown at call time
-  end,
 }
 
 local function find_renderer(toolCall)
@@ -433,12 +437,12 @@ function M.append_toolcall_end(toolCall)
   local renderer = find_renderer(toolCall)
   if renderer then
     if toolCall.id then
-      active_renderers[toolCall.id] = renderer
+      active_renderers[toolCall.id] = { renderer = renderer, toolCall = toolCall }
     end
-    renderer.call({
+    renderer.call {
       chat = M,
       toolCall = toolCall,
-    })
+    }
     return
   end
 
