@@ -615,7 +615,7 @@ local function generate_edit_diff(path, edits)
     return nil
   end
 
-  local diff = vim.diff(old_content, new_content, {
+  local diff = vim.text.diff(old_content, new_content, {
     result_type = 'unified',
     ctxlen = 3,
   })
