@@ -7,9 +7,11 @@ local opts = {}
 
 local line_width = 63
 local diff_ns = vim.api.nvim_create_namespace 'pi_chat_diff'
+local thinking_ns = vim.api.nvim_create_namespace 'pi_chat_thinking'
 
 function M.setup(config)
   opts = config
+  vim.api.nvim_set_hl(0, 'PiChatThinking', { italic = true })
 end
 
 function M.create()
@@ -59,6 +61,7 @@ function M.clear()
   end
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, {})
   vim.api.nvim_buf_clear_namespace(buf, diff_ns, 0, -1)
+  vim.api.nvim_buf_clear_namespace(buf, thinking_ns, 0, -1)
 end
 
 function M.append_seperator(text)
@@ -398,6 +401,9 @@ local message_update_handlers = {
     -- Thinking block started
     M.append_seperator(M.current_assistant.model .. ' (thinking)')
     M.append_newline()
+    if buf and vim.api.nvim_buf_is_valid(buf) then
+      M._thinking_start_line = vim.api.nvim_buf_line_count(buf) - 1
+    end
   end,
   ---@param msg MessageUpdateEventThinkingDelta
   thinking_delta = function(msg)
@@ -407,6 +413,16 @@ local message_update_handlers = {
   ---@param msg MessageUpdateEventThinkingEnd
   thinking_end = function(msg)
     -- Thinking block ended
+    if buf and vim.api.nvim_buf_is_valid(buf) and M._thinking_start_line then
+      local end_line = vim.api.nvim_buf_line_count(buf) - 1
+      for line = M._thinking_start_line, end_line do
+        local text = vim.api.nvim_buf_get_lines(buf, line, line + 1, false)[1] or ''
+        if text ~= '' then
+          vim.api.nvim_buf_add_highlight(buf, thinking_ns, 'PiChatThinking', line, 0, -1)
+        end
+      end
+      M._thinking_start_line = nil
+    end
     M.append_newline()
   end,
 
