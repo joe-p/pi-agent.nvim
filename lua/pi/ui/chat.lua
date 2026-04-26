@@ -303,7 +303,7 @@ local message_handlers = {
 
     local agentMsg = msg.message ---@cast agentMsg AssistantAgentMessage
     M.current_assistant = agentMsg
-    session.set_current_activity('responding')
+    session.set_current_activity 'responding'
     M.refresh_statusline()
   end,
   ---@param msg MessageUpdateEvent
@@ -321,7 +321,7 @@ local message_handlers = {
   ---@param msg ToolExecutionStartEvent
   tool_execution_start = function(msg)
     tool_executions[msg.toolCallId] = msg
-    session.set_current_activity('tool_calling')
+    session.set_current_activity 'tool_calling'
     M.refresh_statusline()
     local renderer = tool_renderers[msg.toolName]
     if renderer and renderer.execution_start then
@@ -470,7 +470,7 @@ local message_update_handlers = {
   ---@param msg MessageUpdateEventTextStart
   text_start = function(msg)
     -- Text content block started
-    session.set_current_activity('responding')
+    session.set_current_activity 'responding'
     M.refresh_statusline()
     local model = M.current_assistant and M.current_assistant.model or 'Assistant'
     M.append_seperator(model)
@@ -490,7 +490,7 @@ local message_update_handlers = {
   ---@param msg MessageUpdateEventThinkingStart
   thinking_start = function(msg)
     -- Thinking block started
-    session.set_current_activity('thinking')
+    session.set_current_activity 'thinking'
     M.refresh_statusline()
     local model = M.current_assistant and M.current_assistant.model or 'Assistant'
     M.append_seperator(model .. ' (thinking)')
@@ -525,7 +525,7 @@ local message_update_handlers = {
   ---@param msg MessageUpdateEventToolCallStart
   toolcall_start = function(msg)
     -- Tool call started. event.contentIndex, event.partial
-    session.set_current_activity('tool_calling')
+    session.set_current_activity 'tool_calling'
     M.refresh_statusline()
   end,
   ---@param msg MessageUpdateEventToolCallDelta
