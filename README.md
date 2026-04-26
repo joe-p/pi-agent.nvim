@@ -16,7 +16,7 @@ A Neovim plugin for chatting with the [pi coding agent](https://github.com/badlo
 
 - Neovim 0.9+
 - `pi` binary installed: `npm install -g @mariozechner/pi-coding-agent`
-- (Optional) Telescope or fzf-lua for file picker
+
 
 ## Installation
 
@@ -181,7 +181,7 @@ Basic functionality is implemented:
 - ✅ Extension UI protocol (select, confirm, input, editor, notify)
 - ✅ Slash commands with custom command support
 - ❌ Images in chat (terminal dependent)
-- ⚠️ File picker (@ references) - basic implementation, needs polish
+- ✅ File picker (@ references) - built-in vim.ui.select
 
 ## License
 

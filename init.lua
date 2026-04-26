@@ -31,8 +31,7 @@ require('lazy').setup {
       }
     end,
   },
-  -- Optional: add telescope for file picker
-  -- { 'nvim-telescope/telescope.nvim', dependencies = { 'nvim-lua/plenary.nvim' } },
+
 }
 
 -- Quick keymap to start

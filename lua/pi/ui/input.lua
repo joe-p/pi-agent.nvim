@@ -239,60 +239,14 @@ function M.set_placeholder(text)
 end
 
 function M.open_file_picker()
-  -- Use built-in file picker or telescope/fzf if available
-  local picker = M.get_picker()
-
-  if picker == 'telescope' then
-    require('telescope.builtin').find_files {
-      attach_mappings = function(prompt_bufnr, map)
-        local actions = require 'telescope.actions'
-        actions.select_default:replace(function()
-          actions.close(prompt_bufnr)
-          local selection = require('telescope.actions.state').get_selected_entry()
-          if selection then
-            M.insert_file_ref(selection.value)
-          end
-        end)
-        return true
-      end,
-    }
-  elseif picker == 'fzf-lua' then
-    require('fzf-lua').files {
-      actions = {
-        ['default'] = function(selected)
-          if selected then
-            M.insert_file_ref(selected[1])
-          end
-        end,
-      },
-    }
-  else
-    -- Fallback to built-in
-    vim.ui.select(vim.fn.glob('**/*', true, true), {
-      prompt = 'Select file:',
-    }, function(choice)
-      if choice then
-        M.insert_file_ref(choice)
-      end
-    end)
-  end
-end
-
-function M.get_picker()
-  -- Check for telescope
-  local ok, _ = pcall(require, 'telescope')
-  if ok then
-    return 'telescope'
-  end
-
-  -- Check for fzf-lua
-  ok, _ = pcall(require, 'fzf-lua')
-  if ok then
-    return 'fzf-lua'
-  end
-
-  -- Fallback to none
-  return nil
+  -- Use built-in file picker
+  vim.ui.select(vim.fn.glob('**/*', true, true), {
+    prompt = 'Select file:',
+  }, function(choice)
+    if choice then
+      M.insert_file_ref(choice)
+    end
+  end)
 end
 
 function M.insert_file_ref(filepath)
