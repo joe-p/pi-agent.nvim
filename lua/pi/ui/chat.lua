@@ -150,7 +150,16 @@ local message_update_handlers = {
   toolcall_start = function() end,
   toolcall_delta = function() end,
   toolcall_end = function(msg)
-    M.append_toolcall_end(msg.assistantMessageEvent.toolCall)
+    local toolCall = msg.assistantMessageEvent.toolCall
+    local renderer = M.tool_renderers[toolCall.name]
+    if renderer and renderer.call then
+      return
+    end
+    M.append_newline()
+    M.append_seperator('Tool: ' .. toolCall.name)
+    if toolCall.arguments then
+      M.append_lines { vim.json.encode(toolCall.arguments) }
+    end
   end,
   text_start = function()
     M.append_seperator 'Pi'
@@ -478,62 +487,78 @@ function M.render_history(messages)
     if msg.role == 'user' then
       M.add_user_message(extract_text(msg.content))
     elseif msg.role == 'assistant' then
-      -- Render assistant message - process content blocks in document order
-      if type(msg.content) == 'table' then
-        local in_text_section = false
+      M.render_message { type = 'message_start' }
 
+      if type(msg.content) == 'table' then
         for _, part in ipairs(msg.content) do
           if part.type == 'text' then
-            -- Open a Pi section on first text block (or if not already open)
-            if not in_text_section then
-              M.append_seperator 'Pi'
-              M.append_newline()
-              in_text_section = true
-            end
+            M.render_message {
+              type = 'message_update',
+              assistantMessageEvent = { type = 'text_start' },
+            }
             if part.text and part.text ~= '' then
-              M.append_text(part.text)
+              M.render_message {
+                type = 'message_update',
+                assistantMessageEvent = { type = 'text_delta', delta = part.text },
+              }
             end
+            M.render_message {
+              type = 'message_update',
+              assistantMessageEvent = { type = 'text_end' },
+            }
           elseif part.type == 'thinking' then
-            -- Close any open text section before thinking
-            if in_text_section then
-              M.append_newline()
-              in_text_section = false
-            end
-            M.append_seperator 'Thinking...'
-            M.append_newline()
+            M.render_message {
+              type = 'message_update',
+              assistantMessageEvent = { type = 'thinking_start' },
+            }
             if part.thinking and part.thinking ~= '' then
-              M.append_text(part.thinking)
+              M.render_message {
+                type = 'message_update',
+                assistantMessageEvent = { type = 'thinking_delta', delta = part.thinking },
+              }
             end
-            M.append_newline()
+            M.render_message {
+              type = 'message_update',
+              assistantMessageEvent = { type = 'thinking_end' },
+            }
           elseif part.type == 'toolCall' then
-            -- Close any open text section before tool call
-            if in_text_section then
-              M.append_newline()
-              in_text_section = false
-            end
-            M.append_toolcall_end(part)
+            M.render_message {
+              type = 'message_update',
+              assistantMessageEvent = {
+                type = 'toolcall_end',
+                toolCall = part,
+              },
+            }
           end
-          -- Skip image blocks
-        end
-
-        -- Close trailing text section
-        if in_text_section then
-          M.append_newline()
         end
       elseif type(msg.content) == 'string' then
-        -- Plain text response
-        M.append_seperator 'Pi'
-        M.append_newline()
-        M.append_text(msg.content)
-        M.append_newline()
+        M.render_message {
+          type = 'message_update',
+          assistantMessageEvent = { type = 'text_start' },
+        }
+        if msg.content ~= '' then
+          M.render_message {
+            type = 'message_update',
+            assistantMessageEvent = { type = 'text_delta', delta = msg.content },
+          }
+        end
+        M.render_message {
+          type = 'message_update',
+          assistantMessageEvent = { type = 'text_end' },
+        }
       end
+
+      M.render_message { type = 'message_end' }
     elseif msg.role == 'toolResult' then
-      -- Tool result messages returned by get_messages
-      M.append_tool_end(msg.toolCallId, { content = msg.content }, msg.isError)
+      M.render_message {
+        type = 'tool_execution_end',
+        toolCallId = msg.toolCallId,
+        result = { content = msg.content },
+        isError = msg.isError,
+      }
     end
   end
 
-  -- Scroll to bottom
   M.scroll_to_bottom()
 end
 
