@@ -726,7 +726,18 @@ tool_renderers['bash'] = {
     chat.append_lines { '```bash', '$ ' .. start.args.command, '```' }
   end,
   execution_end = function(chat, start, t_end)
-    chat.append_lines { '```bash', t_end.result.content, '```' }
+    local lines = { '```bash' }
+    if t_end.result and t_end.result.content then
+      for _, item in ipairs(t_end.result.content) do
+        if item.type == 'text' and item.text then
+          for _, line in ipairs(vim.split(item.text, '\n', { plain = true })) do
+            table.insert(lines, line)
+          end
+        end
+      end
+    end
+    table.insert(lines, '```')
+    chat.append_lines(lines)
   end,
 }
 
