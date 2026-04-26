@@ -11,7 +11,7 @@ local thinking_ns = vim.api.nvim_create_namespace 'pi_chat_thinking'
 
 function M.setup(config)
   opts = config
-  vim.api.nvim_set_hl(0, 'PiChatThinking', { italic = true })
+  vim.api.nvim_set_hl(0, 'PiChatThinking', { link = 'Comment' })
 end
 
 function M.create()
