@@ -200,6 +200,12 @@ function M.send_message(steering)
     return
   end
 
+  if text:match '^/model' then
+    M.show_model_picker()
+    M.clear()
+    return
+  end
+
   -- Other slash commands are handled by pi
   -- They are sent just like normal messages, pi parses and executes them
 
@@ -337,6 +343,66 @@ local function get_first_user_message(filepath)
 
   f:close()
   return nil
+end
+
+-- Show model picker and switch to selected model
+function M.show_model_picker()
+  rpc.send({ type = 'get_available_models' }, function(response)
+    if not response or not response.success or not response.data or not response.data.models then
+      vim.notify('Failed to fetch models', vim.log.levels.ERROR)
+      return
+    end
+
+    local models = response.data.models
+    if #models == 0 then
+      vim.notify('No models available', vim.log.levels.WARN)
+      return
+    end
+
+    -- Sort models by provider then name
+    table.sort(models, function(a, b)
+      local provider_a = a.provider or ''
+      local provider_b = b.provider or ''
+      if provider_a ~= provider_b then
+        return provider_a:lower() < provider_b:lower()
+      end
+      return (a.name or a.id or ''):lower() < (b.name or b.id or ''):lower()
+    end)
+
+    -- Build display items
+    local items = {}
+    for _, model in ipairs(models) do
+      local display = string.format('%s / %s', model.provider or 'unknown', model.name or model.id)
+      table.insert(items, {
+        display = display,
+        model = model,
+      })
+    end
+
+    vim.ui.select(items, {
+      prompt = 'Select model:',
+      format_item = function(item)
+        return item.display
+      end,
+    }, function(choice)
+      if not choice then
+        return
+      end
+
+      local model = choice.model
+      rpc.send({ type = 'set_model', provider = model.provider, modelId = model.id }, function(set_response)
+        if set_response and set_response.success then
+          local name = set_response.data and (set_response.data.name or set_response.data.id) or model.name or model.id
+          vim.notify('Switched to model: ' .. name, vim.log.levels.INFO)
+          -- Refresh state so session module knows about the new model
+          rpc.send { type = 'get_state' }
+        else
+          local err = set_response and set_response.error or 'Unknown error'
+          vim.notify('Failed to switch model: ' .. err, vim.log.levels.ERROR)
+        end
+      end)
+    end)
+  end)
 end
 
 -- Show session picker and switch to selected session

@@ -95,6 +95,12 @@ _G._pi_chat_statusline = function()
   local usage = session.get_usage()
   local parts = {}
 
+  -- Current model
+  if state.model then
+    local model_name = state.model.name or state.model.id or 'unknown'
+    table.insert(parts, model_name)
+  end
+
   -- Session state indicators
   if state.isStreaming then
     local activity = state.currentActivity or 'responding'
