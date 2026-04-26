@@ -97,6 +97,28 @@ end
 ---@field isError? boolean
 ---@field errorMessage? string
 
+---@class UsageCost
+---@field input number
+---@field output number
+---@field cacheRead number
+---@field cacheWrite number
+---@field total number
+
+---@class Usage
+---@field input number
+---@field output number
+---@field cacheRead number
+---@field cacheWrite number
+---@field cost UsageCost
+
+---@class AssistantAgentMessage : AgentMessage
+---@field role "assistant"
+---@field api string
+---@field provider string
+---@field model string
+---@field usage Usage
+---@field stopReason "stop"|"length"|"toolUse"|"error"|"aborted"
+
 ---@class ToolResult
 ---@field content table[]
 ---@field details? table
@@ -142,6 +164,9 @@ local tool_renderers = {}
 ---@type {[string]: ToolExecutionStartEvent}
 local tool_executions = {}
 
+---@type AssistantAgentMessage | nil
+M.current_assistant = nil
+
 --- Message type handlers: msg.type -> function(msg)
 -- See: https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/rpc.md#event-types
 ---@type table[string, fun(msg: MessageEvent)>
@@ -178,6 +203,9 @@ local message_handlers = {
   ---@param msg MessageStartEvent
   message_start = function(msg)
     -- Message begins. msg.message contains the AgentMessage
+
+    local agentMsg = msg.message ---@cast agentMsg AssistantAgentMessage
+    M.current_assistant = agentMsg
   end,
   ---@param msg MessageUpdateEvent
   message_update = function(msg)
@@ -351,7 +379,7 @@ local message_update_handlers = {
   ---@param msg MessageUpdateEventTextStart
   text_start = function(msg)
     -- Text content block started
-    M.append_seperator 'Pi'
+    M.append_seperator(M.current_assistant.model)
     M.append_newline()
   end,
   ---@param msg MessageUpdateEventTextDelta
