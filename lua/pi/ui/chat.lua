@@ -49,6 +49,8 @@ function M.create()
     vim.api.nvim_set_option_value('buftype', 'nofile', { buf = buf })
     -- Register markdown treesitter parser so render-markdown works on pichat buffers
     vim.treesitter.language.register('markdown', 'pichat')
+    -- Start treesitter highlighting (required for code block syntax highlighting)
+    pcall(vim.treesitter.start, buf)
     vim.api.nvim_set_option_value('bufhidden', 'hide', { buf = buf })
     vim.api.nvim_set_option_value('swapfile', false, { buf = buf })
     vim.api.nvim_set_option_value('modifiable', true, { buf = buf })
