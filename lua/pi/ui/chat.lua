@@ -95,9 +95,6 @@ _G._pi_chat_statusline = function()
   local usage = session.get_usage()
   local parts = {}
 
-  -- Base label
-  table.insert(parts, 'pi-chat')
-
   -- Session state indicators
   if state.isStreaming then
     local activity = state.currentActivity or 'responding'
