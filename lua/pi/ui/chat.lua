@@ -288,8 +288,12 @@ local message_handlers = {
     if msg.messages then
       for _, m in ipairs(msg.messages) do
         if m.errorMessage then
-          vim.notify('pi-agent ERROR: ' .. m.errorMessage, vim.log.levels.ERROR)
-          M.append_error(m.errorMessage)
+          if m.errorMessage == 'Request was aborted' then
+            M.append_info(m.errorMessage)
+          else
+            vim.notify('pi-agent ERROR: ' .. m.errorMessage, vim.log.levels.ERROR)
+            M.append_error(m.errorMessage)
+          end
         end
       end
     end
