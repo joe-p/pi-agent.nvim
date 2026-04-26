@@ -86,10 +86,77 @@ function M.append_seperator(text)
   end
 end
 
--- Message type handlers: msg.type -> function(msg)
+-- Type definitions for RPC events
+-- See: https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/rpc.md
+
+---@class ToolCall
+---@field id string
+---@field name string
+---@field arguments table
+
+---@class ContentBlock
+---@field type "text"|"thinking"|"toolCall"
+---@field text? string
+---@field thinking? string
+---@field id? string
+---@field name? string
+---@field arguments? table
+
+---@class AgentMessage
+---@field role "user"|"assistant"|"toolResult"
+---@field content string|ContentBlock[]
+---@field timestamp number
+---@field attachments? table[]
+---@field toolCallId? string
+---@field toolName? string
+---@field isError? boolean
+---@field errorMessage? string
+
+---@class ToolResult
+---@field content table[]
+---@field details? table
+
+---@class CompactionResult
+---@field summary string
+---@field firstKeptEntryId string
+---@field tokensBefore number
+---@field details table
+
+---@class MessageHandlerContext
+
+---@alias AgentStartEvent { type: "agent_start" }
+---@alias AgentEndEvent { type: "agent_end", messages: AgentMessage[] }
+---@alias TurnStartEvent { type: "turn_start" }
+---@alias TurnEndEvent { type: "turn_end", message: AgentMessage, toolResults: ToolResult[] }
+---@alias MessageStartEvent { type: "message_start", message: AgentMessage }
+---@alias MessageEndEvent { type: "message_end", message: AgentMessage }
+---@alias MessageUpdateEvent { type: "message_update", message: AgentMessage, assistantMessageEvent: AssistantMessageEvent }
+---@alias ToolExecutionStartEvent { type: "tool_execution_start", toolCallId: string, toolName: string, args: table }
+---@alias ToolExecutionUpdateEvent { type: "tool_execution_update", toolCallId: string, toolName: string, args: table, partialResult: ToolResult }
+---@alias ToolExecutionEndEvent { type: "tool_execution_end", toolCallId: string, toolName: string, result: ToolResult, isError: boolean }
+---@alias ErrorEvent { type: "error", error: string }
+---@alias ExtensionErrorEvent { type: "extension_error", extensionPath: string, event: string, error: string }
+---@alias CompactionStartEvent { type: "compaction_start", reason: "manual"|"threshold"|"overflow" }
+---@alias CompactionEndEvent { type: "compaction_end", reason: string, result: CompactionResult?, aborted: boolean, willRetry: boolean }
+---@alias AutoRetryStartEvent { type: "auto_retry_start", attempt: number, maxAttempts: number, delayMs: number, errorMessage: string }
+---@alias AutoRetryEndEvent { type: "auto_retry_end", success: boolean, attempt: number, finalError?: string }
+---@alias QueueUpdateEvent { type: "queue_update", steering: string[], followUp: string[] }
+---@alias ExtensionUIRequestEvent { type: "extension_ui_request", id: string, method: string, [string]: any }
+
+---@alias MessageEvent AgentStartEvent|AgentEndEvent|TurnStartEvent|TurnEndEvent|MessageStartEvent|MessageEndEvent|MessageUpdateEvent|ToolExecutionStartEvent|ToolExecutionUpdateEvent|ToolExecutionEndEvent|ErrorEvent|ExtensionErrorEvent|CompactionStartEvent|CompactionEndEvent|AutoRetryStartEvent|AutoRetryEndEvent|QueueUpdateEvent|ExtensionUIRequestEvent
+
+--- Message type handlers: msg.type -> function(msg)
+-- See: https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/rpc.md#event-types
+---@type table[string, fun(msg: MessageEvent)>
 local message_handlers = {
-  agent_start = function() end,
+  -- Agent lifecycle
+  ---@param msg AgentStartEvent
+  agent_start = function(msg)
+    -- Emitted when the agent begins processing a prompt
+  end,
+  ---@param msg AgentEndEvent
   agent_end = function(msg)
+    -- Emitted when the agent completes. Contains all messages generated during this run.
     if msg.messages then
       for _, m in ipairs(msg.messages) do
         if m.errorMessage then
@@ -99,57 +166,184 @@ local message_handlers = {
       end
     end
   end,
-  message_start = function() end,
+
+  -- Turn lifecycle (a turn = one assistant response + resulting tool calls/results)
+  ---@param msg TurnStartEvent
+  turn_start = function(msg)
+    -- New turn begins
+  end,
+  ---@param msg TurnEndEvent
+  turn_end = function(msg)
+    -- Turn completes. Contains: message (assistant), toolResults (array)
+  end,
+
+  -- Message lifecycle
+  ---@param msg MessageStartEvent
+  message_start = function(msg)
+    -- Message begins. msg.message contains the AgentMessage
+  end,
+  ---@param msg MessageUpdateEvent
   message_update = function(msg)
+    -- Streaming update (text/thinking/toolcall deltas)
     M.handle_message_update(msg)
   end,
-  message_end = function()
+  ---@param msg MessageEndEvent
+  message_end = function(msg)
+    -- Message completes. msg.message contains the completed AgentMessage
     M.append_newline()
   end,
+
+  -- Tool execution lifecycle
+  ---@param msg ToolExecutionStartEvent
   tool_execution_start = function(msg)
+    -- Tool begins execution. Contains: toolCallId, toolName, args
     M.append_tool_start(msg.toolName, msg.args)
   end,
-  tool_execution_update = function() end,
+  ---@param msg ToolExecutionUpdateEvent
+  tool_execution_update = function(msg)
+    -- Tool execution progress (streaming output). Contains: partialResult
+  end,
+  ---@param msg ToolExecutionEndEvent
   tool_execution_end = function(msg)
-    M.append_text(vim.inspect(msg))
+    -- Tool completes. Contains: toolCallId, toolName, result, isError
     M.append_tool_end(msg.toolCallId, msg.result, msg.isError)
   end,
+
+  -- Errors
+  ---@param msg ErrorEvent
   error = function(msg)
+    -- General error event
     M.append_error(msg.error or 'Unknown error')
   end,
+  ---@param msg ExtensionErrorEvent
   extension_error = function(msg)
+    -- Extension threw an error. Contains: extensionPath, event, error
     M.append_error(msg.error or 'Unknown error')
   end,
-  compaction_start = function()
+
+  -- Compaction
+  ---@param msg CompactionStartEvent
+  compaction_start = function(msg)
+    -- Compaction begins. msg.reason: "manual", "threshold", or "overflow"
     M.append_info 'Compacting conversation...'
   end,
-  compaction_end = function()
+  ---@param msg CompactionEndEvent
+  compaction_end = function(msg)
+    -- Compaction completes. Contains: reason, result (summary, etc.), aborted, willRetry
     M.append_info 'Compaction complete'
   end,
-  queue_update = function() end,
+
+  -- Auto-retry
+  ---@param msg AutoRetryStartEvent
+  auto_retry_start = function(msg)
+    -- Auto-retry begins after transient error. Contains: attempt, maxAttempts, delayMs, errorMessage
+    M.append_info(string.format('Retrying... (attempt %d/%d)', msg.attempt, msg.maxAttempts))
+  end,
+  ---@param msg AutoRetryEndEvent
+  auto_retry_end = function(msg)
+    -- Auto-retry completes. Contains: success, attempt, finalError (on failure)
+  end,
+
+  -- Queue
+  ---@param msg QueueUpdateEvent
+  queue_update = function(msg)
+    -- Pending steering/follow-up queue changed. Contains: steering (array), followUp (array)
+  end,
+
+  -- Extension UI
+  ---@param msg ExtensionUIRequestEvent
   extension_ui_request = function(msg)
+    -- Extension UI request (select, confirm, input, editor, notify, etc.)
     require('pi.extension_ui').handle_request(msg)
   end,
 }
 
--- Message update event handlers: event.type -> function(msg)
+--- Type definitions for assistant message streaming events
+---@alias AssistantMessageEventStart { type: "start", contentIndex?: number, partial?: table }
+---@alias AssistantMessageEventDone { type: "done", contentIndex?: number, reason: "stop"|"length"|"toolUse", partial?: table }
+---@alias AssistantMessageEventError { type: "error", contentIndex?: number, reason: "aborted"|"error", partial?: table }
+---@alias AssistantMessageEventTextStart { type: "text_start", contentIndex: number, partial: table }
+---@alias AssistantMessageEventTextDelta { type: "text_delta", contentIndex: number, delta: string, partial: table }
+---@alias AssistantMessageEventTextEnd { type: "text_end", contentIndex: number, content: string, partial: table }
+---@alias AssistantMessageEventThinkingStart { type: "thinking_start", contentIndex: number, partial: table }
+---@alias AssistantMessageEventThinkingDelta { type: "thinking_delta", contentIndex: number, delta: string, partial: table }
+---@alias AssistantMessageEventThinkingEnd { type: "thinking_end", contentIndex: number, content: string, partial: table }
+---@alias AssistantMessageEventToolCallStart { type: "toolcall_start", contentIndex: number, partial: table }
+---@alias AssistantMessageEventToolCallDelta { type: "toolcall_delta", contentIndex: number, delta: string, partial: table }
+---@alias AssistantMessageEventToolCallEnd { type: "toolcall_end", contentIndex: number, toolCall: ToolCall, partial: table }
+
+---@alias AssistantMessageEvent AssistantMessageEventStart|AssistantMessageEventDone|AssistantMessageEventError|AssistantMessageEventTextStart|AssistantMessageEventTextDelta|AssistantMessageEventTextEnd|AssistantMessageEventThinkingStart|AssistantMessageEventThinkingDelta|AssistantMessageEventThinkingEnd|AssistantMessageEventToolCallStart|AssistantMessageEventToolCallDelta|AssistantMessageEventToolCallEnd
+
+---@class MessageUpdateEvent
+---@field type "message_update"
+---@field message AgentMessage
+---@field assistantMessageEvent AssistantMessageEvent
+
+--- Message update event handlers: event.type -> function(msg)
+-- See: https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/rpc.md#message_update-streaming
+---@type table[string, fun(msg: MessageUpdateEvent)>
 local message_update_handlers = {
+  -- Message lifecycle
+  ---@param msg MessageUpdateEvent
+  start = function(msg)
+    -- Message generation started
+  end,
+  ---@param msg MessageUpdateEvent
+  done = function(msg)
+    -- Message complete. event.reason: "stop", "length", "toolUse"
+  end,
+  ---@param msg MessageUpdateEvent
+  error = function(msg)
+    -- Error occurred. event.reason: "aborted", "error"
+  end,
+
+  -- Text content
+  ---@param msg MessageUpdateEvent
+  text_start = function(msg)
+    -- Text content block started
+    M.append_seperator 'Pi'
+    M.append_newline()
+  end,
+  ---@param msg MessageUpdateEvent
   text_delta = function(msg)
+    -- Text content chunk
     M.append_text(msg.assistantMessageEvent.delta)
   end,
-  thinking_start = function()
+  ---@param msg MessageUpdateEvent
+  text_end = function(msg)
+    -- Text content block ended. event.content contains full text
+  end,
+
+  -- Thinking content
+  ---@param msg MessageUpdateEvent
+  thinking_start = function(msg)
+    -- Thinking block started
     M.append_seperator 'Thinking...'
     M.append_newline()
   end,
+  ---@param msg MessageUpdateEvent
   thinking_delta = function(msg)
+    -- Thinking content chunk
     M.append_text(msg.assistantMessageEvent.delta)
   end,
-  thinking_end = function()
+  ---@param msg MessageUpdateEvent
+  thinking_end = function(msg)
+    -- Thinking block ended
     M.append_newline()
   end,
-  toolcall_start = function() end,
-  toolcall_delta = function() end,
+
+  -- Tool calls
+  ---@param msg MessageUpdateEvent
+  toolcall_start = function(msg)
+    -- Tool call started. event.contentIndex, event.partial
+  end,
+  ---@param msg MessageUpdateEvent
+  toolcall_delta = function(msg)
+    -- Tool call arguments chunk. event.delta contains args JSON fragment
+  end,
+  ---@param msg MessageUpdateEvent
   toolcall_end = function(msg)
+    -- Tool call ended. event.toolCall contains full ToolCall object
     local toolCall = msg.assistantMessageEvent.toolCall
     local renderer = M.tool_renderers[toolCall.name]
     if renderer and renderer.call then
@@ -161,14 +355,10 @@ local message_update_handlers = {
       M.append_lines { vim.json.encode(toolCall.arguments) }
     end
   end,
-  text_start = function()
-    M.append_seperator 'Pi'
-    M.append_newline()
-  end,
-  text_end = function() end,
 }
 
 -- Render a message event from pi
+---@param msg MessageEvent
 function M.render_message(msg)
   local handler = message_handlers[msg.type]
   if handler then
@@ -176,6 +366,7 @@ function M.render_message(msg)
   end
 end
 
+---@param msg MessageUpdateEvent
 function M.handle_message_update(msg)
   local event = msg.assistantMessageEvent
   if not event then
