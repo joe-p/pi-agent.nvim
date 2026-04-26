@@ -5,32 +5,6 @@
 if not _G.pi_loaded then
   _G.pi_loaded = true
 
-  -- Set up autocommands for filetypes
-  vim.api.nvim_create_autocmd('FileType', {
-    pattern = 'pichat',
-    callback = function()
-      -- Chat buffer options
-      vim.opt_local.cursorline = false
-      vim.opt_local.number = false
-      vim.opt_local.relativenumber = false
-      vim.opt_local.signcolumn = 'no'
-      vim.opt_local.wrap = true
-      vim.opt_local.linebreak = true
-    end,
-  })
-
-  vim.api.nvim_create_autocmd('FileType', {
-    pattern = 'piinput',
-    callback = function()
-      -- Input buffer options
-      vim.opt_local.number = false
-      vim.opt_local.relativenumber = false
-      vim.opt_local.signcolumn = 'no'
-      vim.opt_local.wrap = true
-      vim.opt_local.linebreak = true
-    end,
-  })
-
   -- Prevent pi buffers from blocking :q with "no write since last change"
   if vim.fn.exists('##BufModifiedSet') == 1 then
     vim.api.nvim_create_autocmd('BufModifiedSet', {
