@@ -224,16 +224,13 @@ local message_handlers = {
   -- Tool execution lifecycle
   ---@param msg ToolExecutionStartEvent
   tool_execution_start = function(msg)
-    vim.notify 'tool x start'
     tool_executions[msg.toolCallId] = msg
     local renderer = tool_renderers[msg.toolName]
-    vim.notify 'tool x cond'
     if renderer and renderer.execution_start then
       renderer.execution_start(M, msg)
       return
     end
 
-    vim.notify('tool x sep ' .. msg.toolName)
     M.append_newline()
     M.append_seperator('Executing Tool: ' .. msg.toolName)
     if msg.args then
@@ -414,20 +411,21 @@ local message_update_handlers = {
   thinking_delta = function(msg)
     -- Thinking content chunk
     M.append_text(msg.assistantMessageEvent.delta)
-  end,
-  ---@param msg MessageUpdateEventThinkingEnd
-  thinking_end = function(msg)
-    -- Thinking block ended
     if buf and vim.api.nvim_buf_is_valid(buf) and M._thinking_start_line then
       local end_line = vim.api.nvim_buf_line_count(buf) - 1
+      vim.api.nvim_buf_clear_namespace(buf, thinking_ns, M._thinking_start_line, end_line + 1)
       for line = M._thinking_start_line, end_line do
         local text = vim.api.nvim_buf_get_lines(buf, line, line + 1, false)[1] or ''
         if text ~= '' then
           vim.api.nvim_buf_add_highlight(buf, thinking_ns, 'PiChatThinking', line, 0, -1)
         end
       end
-      M._thinking_start_line = nil
     end
+  end,
+  ---@param msg MessageUpdateEventThinkingEnd
+  thinking_end = function(msg)
+    -- Thinking block ended
+    M._thinking_start_line = nil
     M.append_newline()
   end,
 
