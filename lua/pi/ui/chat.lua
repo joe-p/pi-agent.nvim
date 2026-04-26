@@ -10,6 +10,21 @@ local diff_ns = vim.api.nvim_create_namespace 'pi_chat_diff'
 local thinking_ns = vim.api.nvim_create_namespace 'pi_chat_thinking'
 local sep_ns = vim.api.nvim_create_namespace 'pi_chat_sep'
 
+-- Extract text lines from a result's content blocks
+local function extract_result_lines(result)
+  local lines = {}
+  if result and result.content then
+    for _, item in ipairs(result.content) do
+      if item.type == 'text' and item.text then
+        for _, line in ipairs(vim.split(item.text, '\n', { plain = true })) do
+          table.insert(lines, line)
+        end
+      end
+    end
+  end
+  return lines
+end
+
 function M.setup(config)
   opts = config
   vim.api.nvim_set_hl(0, 'PiChatThinking', { link = 'Comment' })
@@ -720,21 +735,6 @@ tool_renderers['bash'] = {
     chat.append_lines(lines)
   end,
 }
-
--- Extract text lines from a result's content blocks
-local function extract_result_lines(result)
-  local lines = {}
-  if result and result.content then
-    for _, item in ipairs(result.content) do
-      if item.type == 'text' and item.text then
-        for _, line in ipairs(vim.split(item.text, '\n', { plain = true })) do
-          table.insert(lines, line)
-        end
-      end
-    end
-  end
-  return lines
-end
 
 -- Extract text string from message content (handles both string and table formats)
 local function extract_text(content)
