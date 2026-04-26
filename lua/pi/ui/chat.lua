@@ -8,10 +8,12 @@ local opts = {}
 local line_width = 63
 local diff_ns = vim.api.nvim_create_namespace 'pi_chat_diff'
 local thinking_ns = vim.api.nvim_create_namespace 'pi_chat_thinking'
+local sep_ns = vim.api.nvim_create_namespace 'pi_chat_sep'
 
 function M.setup(config)
   opts = config
   vim.api.nvim_set_hl(0, 'PiChatThinking', { link = 'Comment' })
+  vim.api.nvim_set_hl(0, 'PiChatSeparator', { italic = true })
 end
 
 function M.create()
@@ -62,13 +64,26 @@ function M.clear()
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, {})
   vim.api.nvim_buf_clear_namespace(buf, diff_ns, 0, -1)
   vim.api.nvim_buf_clear_namespace(buf, thinking_ns, 0, -1)
+  vim.api.nvim_buf_clear_namespace(buf, sep_ns, 0, -1)
 end
 
 function M.append_seperator(text)
   M.append_newline()
   if text and text ~= '' then
-    local part = '── ' .. text .. ' '
-    M.append_lines { part .. string.rep('─', line_width - #part) }
+    local prefix = '── '
+    local suffix = ' '
+    local part = prefix .. text .. suffix
+    local line = part .. string.rep('─', line_width - #part)
+    M.append_lines { line }
+    if buf and vim.api.nvim_buf_is_valid(buf) then
+      local line_count = vim.api.nvim_buf_line_count(buf)
+      local line_idx = line_count - 1
+      vim.api.nvim_buf_set_extmark(buf, sep_ns, line_idx, #prefix, {
+        end_col = #prefix + #text,
+        hl_group = 'PiChatSeparator',
+        hl_mode = 'combine',
+      })
+    end
   else
     M.append_lines { string.rep('─', line_width) }
   end
