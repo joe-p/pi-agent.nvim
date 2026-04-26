@@ -274,7 +274,7 @@ local message_handlers = {
 
 ---@alias AssistantMessageEvent AssistantMessageEventStart|AssistantMessageEventDone|AssistantMessageEventError|AssistantMessageEventTextStart|AssistantMessageEventTextDelta|AssistantMessageEventTextEnd|AssistantMessageEventThinkingStart|AssistantMessageEventThinkingDelta|AssistantMessageEventThinkingEnd|AssistantMessageEventToolCallStart|AssistantMessageEventToolCallDelta|AssistantMessageEventToolCallEnd
 
----@class MessageUpdateEvent
+---@class MessageUpdateEventData
 ---@field type "message_update"
 ---@field message AgentMessage
 ---@field assistantMessageEvent AssistantMessageEvent
@@ -385,7 +385,6 @@ function M.render_message(msg)
   end
 end
 
----@param msg MessageUpdateEvent|MessageUpdateEventStart|MessageUpdateEventDone|MessageUpdateEventError|MessageUpdateEventTextStart|MessageUpdateEventTextDelta|MessageUpdateEventTextEnd|MessageUpdateEventThinkingStart|MessageUpdateEventThinkingDelta|MessageUpdateEventThinkingEnd|MessageUpdateEventToolCallStart|MessageUpdateEventToolCallDelta|MessageUpdateEventToolCallEnd
 function M.handle_message_update(msg)
   local event = msg.assistantMessageEvent
   if not event then
