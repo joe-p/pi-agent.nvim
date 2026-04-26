@@ -14,7 +14,7 @@ function M.handle_request(msg)
   -- Fire-and-forget methods
   if method == 'notify' then
     local chat = require 'pi.ui.chat'
-    chat.append_content_with_header('Notify', msg.message)
+    chat.append_content_with_header('Notification', msg.message)
     return
   end
 
