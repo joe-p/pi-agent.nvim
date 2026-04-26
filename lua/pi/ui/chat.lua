@@ -856,6 +856,7 @@ local function render_diff_lines(lines)
 end
 
 tool_renderers['edit'] = {
+  execution_start = function(chat, ctx) end,
   execution_end = function(chat, ctx)
     local args = ctx.args
     local diff = generate_edit_diff(args.path, args.edits)
@@ -937,7 +938,6 @@ function M.render_history(messages)
       if text and text ~= '' then
         M.append_content_with_header('User', text)
       end
-
     elseif role == 'assistant' then
       local model = msg.model or 'Assistant'
       if msg.errorMessage then
@@ -985,7 +985,6 @@ function M.render_history(messages)
           end
         end
       end
-
     elseif role == 'toolResult' then
       local pending = pending_tool_calls[msg.toolCallId]
       pending_tool_calls[msg.toolCallId] = nil
@@ -1002,11 +1001,10 @@ function M.render_history(messages)
         renderer.execution_end(M, ctx)
       else
         M.append_seperator('Tool Result: ' .. msg.toolName)
-        M.append_lines(extract_result_lines({ content = msg.content }))
+        M.append_lines(extract_result_lines { content = msg.content })
       end
-
     elseif role == 'bashExecution' then
-      M.append_seperator('Bash')
+      M.append_seperator 'Bash'
       M.append_lines { '```bash', '$ ' .. (msg.command or ''), '```' }
       if msg.output and msg.output ~= '' then
         local lines = vim.split(msg.output, '\n', { plain = true })
@@ -1019,19 +1017,15 @@ function M.render_history(messages)
       elseif msg.exitCode and msg.exitCode ~= 0 then
         M.append_lines { '(exit code: ' .. tostring(msg.exitCode) .. ')' }
       end
-
     elseif role == 'custom' then
       if msg.display ~= false then
         local text = extract_text(msg.content)
         M.append_content_with_header('Custom: ' .. (msg.customType or 'unknown'), text)
       end
-
     elseif role == 'branchSummary' then
       M.append_content_with_header('Branch Summary', msg.summary or '')
-
     elseif role == 'compactionSummary' then
       M.append_content_with_header('Compaction Summary', msg.summary or '')
-
     end
   end
 
