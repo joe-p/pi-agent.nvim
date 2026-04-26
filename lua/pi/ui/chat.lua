@@ -47,6 +47,8 @@ function M.create()
     pcall(vim.api.nvim_buf_set_name, buf, 'pi-chat://chat')
     vim.api.nvim_set_option_value('filetype', 'pichat', { buf = buf })
     vim.api.nvim_set_option_value('buftype', 'nofile', { buf = buf })
+    -- Register markdown treesitter parser so render-markdown works on pichat buffers
+    vim.treesitter.language.register('markdown', 'pichat')
     vim.api.nvim_set_option_value('bufhidden', 'hide', { buf = buf })
     vim.api.nvim_set_option_value('swapfile', false, { buf = buf })
     vim.api.nvim_set_option_value('modifiable', true, { buf = buf })
