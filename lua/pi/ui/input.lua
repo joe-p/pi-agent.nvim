@@ -95,23 +95,26 @@ function M.setup_keymaps()
     end,
   })
 
-  -- Clear on <C-c>
-  vim.api.nvim_buf_set_keymap(buf, 'n', '<C-c>', '', {
-    noremap = true,
-    silent = true,
-    callback = function()
-      M.clear()
-    end,
-  })
-
-  -- Abort on double C-c
-  vim.api.nvim_buf_set_keymap(buf, 'n', '<C-c><C-c>', '', {
+  -- Cancel / abort operation (configurable)
+  local cancel_key = opts.keymaps and opts.keymaps.cancel or '<C-x>'
+  vim.api.nvim_buf_set_keymap(buf, 'n', cancel_key, '', {
     noremap = true,
     silent = true,
     callback = function()
       rpc.send { type = 'abort' }
     end,
   })
+
+  -- Clear on <C-c> (skip if it conflicts with cancel key)
+  if cancel_key ~= '<C-c>' then
+    vim.api.nvim_buf_set_keymap(buf, 'n', '<C-c>', '', {
+      noremap = true,
+      silent = true,
+      callback = function()
+        M.clear()
+      end,
+    })
+  end
 
   -- @ file reference support
   vim.api.nvim_buf_set_keymap(buf, 'i', '@', '', {

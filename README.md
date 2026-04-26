@@ -29,20 +29,26 @@ A Neovim plugin for chatting with the [pi coding agent](https://github.com/badlo
     require('pi').setup({
       -- Optionally configure pi path
       pi_cmd = 'pi',
-      
+
       -- Model selection
       -- provider = 'anthropic',
       -- model = 'claude-sonnet-4-20250514',
-      
+
       -- Window layout: 'horizontal', 'vertical', 'tab'
       layout = 'horizontal',
-      
+
       -- Chat window size (percentage)
       chat_height = 0.7,
       chat_width = 0.5,
-      
+
       -- Input window lines
       input_height = 3,
+
+      -- Keymaps
+      keymaps = {
+        close = 'q',              -- Close/toggle pi windows
+        cancel = '<C-x>',         -- Cancel the running agent (also works in chat buffer)
+      },
     })
   end,
 }
@@ -69,6 +75,7 @@ Start chatting:
 :PiStop             " Stop pi agent
 :PiNew              " Start new session
 :PiAbort            " Abort current operation
+:PiCancel           " Cancel current operation (alias for PiAbort)
 ```
 
 Or in Lua:
@@ -86,10 +93,12 @@ require('pi').send_message('Hello, write a function to reverse a string')
 | `S-<CR>` (insert mode) | Send steering message |
 | `<C-s>` (normal mode) | Send steering message |
 | `<C-c>` | Clear input |
-| `<C-c><C-c>` | Abort operation |
+| `<C-x>` (default) | Cancel / abort operation |
 | `C-n` | New session |
 | `@` | File picker (insert file reference) |
 | `?` | Show slash commands help |
+
+> **Note:** The cancel keymap is configurable via `keymaps.cancel` and works in both the input and chat buffers.
 
 ## Slash Commands
 

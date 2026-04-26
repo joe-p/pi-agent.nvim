@@ -55,6 +55,15 @@ function M.create()
   local close_key = opts.keymaps and opts.keymaps.close or 'q'
   vim.api.nvim_buf_set_keymap(buf, 'n', close_key, '<cmd>PiToggle<CR>', { noremap = true, silent = true })
 
+  local cancel_key = opts.keymaps and opts.keymaps.cancel or '<C-x>'
+  vim.api.nvim_buf_set_keymap(buf, 'n', cancel_key, '', {
+    noremap = true,
+    silent = true,
+    callback = function()
+      require('pi.rpc').send { type = 'abort' }
+    end,
+  })
+
   return buf
 end
 

@@ -23,6 +23,7 @@ M.defaults = {
   -- Keymaps - just the key names, plugin sets opts
   keymaps = {
     close = 'q',
+    cancel = '<C-x>',
   },
 }
 
@@ -46,6 +47,10 @@ function M.setup(opts)
   vim.api.nvim_create_user_command('PiAbort', function()
     M.abort()
   end, { desc = 'Abort current operation' })
+
+  vim.api.nvim_create_user_command('PiCancel', function()
+    M.abort()
+  end, { desc = 'Cancel current operation' })
 
   vim.api.nvim_create_user_command('PiChat', function()
     M.open_chat()
