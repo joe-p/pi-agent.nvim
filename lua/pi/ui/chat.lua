@@ -382,7 +382,8 @@ local message_update_handlers = {
   ---@param msg MessageUpdateEventTextStart
   text_start = function(msg)
     -- Text content block started
-    M.append_seperator(M.current_assistant.model)
+    local model = M.current_assistant and M.current_assistant.model or 'Assistant'
+    M.append_seperator(model)
     M.append_newline()
   end,
   ---@param msg MessageUpdateEventTextDelta
@@ -399,7 +400,8 @@ local message_update_handlers = {
   ---@param msg MessageUpdateEventThinkingStart
   thinking_start = function(msg)
     -- Thinking block started
-    M.append_seperator(M.current_assistant.model .. ' (thinking)')
+    local model = M.current_assistant and M.current_assistant.model or 'Assistant'
+    M.append_seperator(model .. ' (thinking)')
     M.append_newline()
     if buf and vim.api.nvim_buf_is_valid(buf) then
       M._thinking_start_line = vim.api.nvim_buf_line_count(buf) - 1
@@ -727,7 +729,7 @@ function M.render_history(messages)
     if msg.role == 'user' then
       M.add_user_message(extract_text(msg.content))
     elseif msg.role == 'assistant' then
-      M.render_message { type = 'message_start' }
+      M.render_message { type = 'message_start', message = msg }
 
       if type(msg.content) == 'table' then
         for _, part in ipairs(msg.content) do
