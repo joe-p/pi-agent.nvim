@@ -33,6 +33,9 @@ A Neovim plugin for chatting with the [pi coding agent](https://github.com/badlo
       -- provider = 'anthropic',
       -- model = 'claude-sonnet-4-20250514',
 
+      -- Continue most recent session on start
+      continue_session = true,
+
       -- Window layout: 'horizontal', 'vertical', 'tab'
       layout = 'horizontal',
 

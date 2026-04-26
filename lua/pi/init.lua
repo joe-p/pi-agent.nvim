@@ -17,6 +17,7 @@ M.defaults = {
   model = nil,
   no_session = false,
   session_dir = nil,
+  continue_session = true,
   -- UI options
   chat_width = 0.45, -- percentage of screen width for right panel
   chat_height_ratio = 0.75, -- percentage of height for chat within right panel (input gets rest)
@@ -82,6 +83,10 @@ function M.start()
   if M.opts.model then
     table.insert(cmd, '--model')
     table.insert(cmd, M.opts.model)
+  end
+
+  if M.opts.continue_session then
+    table.insert(cmd, '--continue')
   end
 
   if M.opts.no_session then
