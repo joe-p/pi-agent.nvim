@@ -11,6 +11,7 @@ end
 local state = {
   isStreaming = false,
   isCompacting = false,
+  currentActivity = 'waiting',
   steeringMode = 'one-at-a-time',
   followUpMode = 'one-at-a-time',
   sessionFile = nil,
@@ -54,8 +55,10 @@ function M.handle_message(msg)
   -- Track streaming state from events
   if msg_type == 'agent_start' then
     state.isStreaming = true
+    state.currentActivity = 'responding'
   elseif msg_type == 'agent_end' then
     state.isStreaming = false
+    state.currentActivity = 'waiting'
     -- Update message count
     if msg.messages then
       state.messageCount = #msg.messages
@@ -93,6 +96,14 @@ function M.get_extension_statuses()
 end
 
 -- Get current state
+function M.set_current_activity(activity)
+  state.currentActivity = activity
+end
+
+function M.get_current_activity()
+  return state.currentActivity
+end
+
 function M.get_state()
   return vim.deepcopy(state)
 end

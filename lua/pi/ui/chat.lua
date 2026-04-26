@@ -4,6 +4,7 @@ local M = {}
 
 local buf = nil
 local opts = {}
+local session = require 'pi.session'
 
 local line_width = 63
 local diff_ns = vim.api.nvim_create_namespace 'pi_chat_diff'
@@ -89,10 +90,20 @@ _G._pi_chat_statusline = function()
 
   -- Session state indicators
   if state.isStreaming then
-    table.insert(parts, 'streaming')
+    local activity = state.currentActivity or 'responding'
+    local emoji_map = {
+      waiting = '💤',
+      thinking = '🧠',
+      tool_calling = '🛠️',
+      responding = '💬',
+    }
+    table.insert(parts, emoji_map[activity] or '💬')
   end
   if state.isCompacting then
-    table.insert(parts, 'compacting')
+    table.insert(parts, '🗜️')
+  end
+  if not state.isStreaming and not state.isCompacting then
+    table.insert(parts, '💤')
   end
 
   -- Extension statuses from setStatus RPC
@@ -292,6 +303,8 @@ local message_handlers = {
 
     local agentMsg = msg.message ---@cast agentMsg AssistantAgentMessage
     M.current_assistant = agentMsg
+    session.set_current_activity('responding')
+    M.refresh_statusline()
   end,
   ---@param msg MessageUpdateEvent
   message_update = function(msg)
@@ -308,6 +321,8 @@ local message_handlers = {
   ---@param msg ToolExecutionStartEvent
   tool_execution_start = function(msg)
     tool_executions[msg.toolCallId] = msg
+    session.set_current_activity('tool_calling')
+    M.refresh_statusline()
     local renderer = tool_renderers[msg.toolName]
     if renderer and renderer.execution_start then
       renderer.execution_start(M, msg)
@@ -455,6 +470,8 @@ local message_update_handlers = {
   ---@param msg MessageUpdateEventTextStart
   text_start = function(msg)
     -- Text content block started
+    session.set_current_activity('responding')
+    M.refresh_statusline()
     local model = M.current_assistant and M.current_assistant.model or 'Assistant'
     M.append_seperator(model)
     M.append_newline()
@@ -473,6 +490,8 @@ local message_update_handlers = {
   ---@param msg MessageUpdateEventThinkingStart
   thinking_start = function(msg)
     -- Thinking block started
+    session.set_current_activity('thinking')
+    M.refresh_statusline()
     local model = M.current_assistant and M.current_assistant.model or 'Assistant'
     M.append_seperator(model .. ' (thinking)')
     M.append_newline()
@@ -506,6 +525,8 @@ local message_update_handlers = {
   ---@param msg MessageUpdateEventToolCallStart
   toolcall_start = function(msg)
     -- Tool call started. event.contentIndex, event.partial
+    session.set_current_activity('tool_calling')
+    M.refresh_statusline()
   end,
   ---@param msg MessageUpdateEventToolCallDelta
   toolcall_delta = function(msg)
