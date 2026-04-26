@@ -273,19 +273,7 @@ local message_handlers = {
       return
     end
 
-    local content = {}
-
-    if msg.result and msg.result.content then
-      for _, item in ipairs(msg.result.content) do
-        if item.type == 'text' then
-          for _, line in ipairs(vim.split(item.text, '\n', { plain = true })) do
-            table.insert(content, line)
-          end
-        end
-      end
-    end
-
-    M.append_lines(content)
+    M.append_lines(extract_result_lines(msg.result))
     M.append_newline()
   end,
 
@@ -727,19 +715,26 @@ tool_renderers['bash'] = {
   end,
   execution_end = function(chat, start, t_end)
     local lines = { '```bash' }
-    if t_end.result and t_end.result.content then
-      for _, item in ipairs(t_end.result.content) do
-        if item.type == 'text' and item.text then
-          for _, line in ipairs(vim.split(item.text, '\n', { plain = true })) do
-            table.insert(lines, line)
-          end
-        end
-      end
-    end
+    vim.list_extend(lines, extract_result_lines(t_end.result))
     table.insert(lines, '```')
     chat.append_lines(lines)
   end,
 }
+
+-- Extract text lines from a result's content blocks
+local function extract_result_lines(result)
+  local lines = {}
+  if result and result.content then
+    for _, item in ipairs(result.content) do
+      if item.type == 'text' and item.text then
+        for _, line in ipairs(vim.split(item.text, '\n', { plain = true })) do
+          table.insert(lines, line)
+        end
+      end
+    end
+  end
+  return lines
+end
 
 -- Extract text string from message content (handles both string and table formats)
 local function extract_text(content)
