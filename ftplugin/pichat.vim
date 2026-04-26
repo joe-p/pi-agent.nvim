@@ -18,5 +18,4 @@ nnoremap q :close
 " Scroll to bottom
 nnoremap G G
 
-" Status line
-setlocal statusline=Neovim\ Chat
+" Status line is set dynamically by chat.configure_window()

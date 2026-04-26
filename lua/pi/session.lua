@@ -23,6 +23,9 @@ local state = {
 -- Message history (for reference)
 local messages = {}
 
+-- Extension statuses from setStatus RPC
+local extension_statuses = {}
+
 -- Handle incoming messages
 function M.handle_message(msg)
   local msg_type = msg.type
@@ -70,6 +73,23 @@ function M.handle_message(msg)
   if #messages > 1000 then
     table.remove(messages, 1)
   end
+end
+
+-- Extension status tracking
+function M.set_extension_status(key, text)
+  if text == nil or text == '' then
+    extension_statuses[key] = nil
+  else
+    extension_statuses[key] = text
+  end
+end
+
+function M.get_extension_statuses()
+  local result = {}
+  for _, text in pairs(extension_statuses) do
+    table.insert(result, text)
+  end
+  return result
 end
 
 -- Get current state

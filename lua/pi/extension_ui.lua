@@ -19,8 +19,11 @@ function M.handle_request(msg)
   end
 
   if method == 'setStatus' then
-    -- Could integrate with statusline
-    -- vim.notify('Status: ' .. (msg.statusText or 'clear'), vim.log.levels.INFO)
+    local session = require 'pi.session'
+    session.set_extension_status(msg.statusKey, msg.statusText)
+    -- Trigger statusline refresh for all pichat windows
+    local chat = require 'pi.ui.chat'
+    chat.refresh_statusline()
     return
   end
 

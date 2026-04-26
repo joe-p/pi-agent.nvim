@@ -70,6 +70,49 @@ function M.configure_window(win)
   vim.api.nvim_set_option_value('wrap', true, { win = win })
   vim.api.nvim_set_option_value('linebreak', true, { win = win })
   vim.api.nvim_set_option_value('breakindent', true, { win = win })
+  vim.api.nvim_set_option_value('statusline', '%!v:lua._pi_chat_statusline()', { win = win })
+end
+
+-- Global statusline function for pichat windows
+_G._pi_chat_statusline = function()
+  local session = require 'pi.session'
+  local state = session.get_state()
+  local parts = {}
+
+  -- Base label
+  table.insert(parts, 'pi-chat')
+
+  -- Session state indicators
+  if state.isStreaming then
+    table.insert(parts, 'streaming')
+  end
+  if state.isCompacting then
+    table.insert(parts, 'compacting')
+  end
+
+  -- Extension statuses from setStatus RPC
+  local statuses = session.get_extension_statuses()
+  for _, text in ipairs(statuses) do
+    table.insert(parts, text)
+  end
+
+  -- Build statusline
+  local left = table.concat(parts, ' │ ')
+  return '%#StatusLine#' .. left .. '%=%#StatusLine#%l:%c'
+end
+
+-- Refresh statusline in all pichat windows
+function M.refresh_statusline()
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    if vim.api.nvim_win_is_valid(win) then
+      local bufnr = vim.api.nvim_win_get_buf(win)
+      local ft = vim.api.nvim_get_option_value('filetype', { buf = bufnr })
+      if ft == 'pichat' then
+        vim.api.nvim_set_option_value('statusline', '%!v:lua._pi_chat_statusline()', { win = win })
+      end
+    end
+  end
+  vim.cmd 'redrawstatus!'
 end
 
 function M.clear()
@@ -211,10 +254,12 @@ local message_handlers = {
   ---@param msg AgentStartEvent
   agent_start = function(msg)
     -- Emitted when the agent begins processing a prompt
+    M.refresh_statusline()
   end,
   ---@param msg AgentEndEvent
   agent_end = function(msg)
     -- Emitted when the agent completes. Contains all messages generated during this run.
+    M.refresh_statusline()
     if msg.messages then
       for _, m in ipairs(msg.messages) do
         if m.errorMessage then
@@ -309,11 +354,13 @@ local message_handlers = {
   compaction_start = function(msg)
     -- Compaction begins. msg.reason: "manual", "threshold", or "overflow"
     M.append_info 'Compacting conversation...'
+    M.refresh_statusline()
   end,
   ---@param msg CompactionEndEvent
   compaction_end = function(msg)
     -- Compaction completes. Contains: reason, result (summary, etc.), aborted, willRetry
     M.append_info 'Compaction complete'
+    M.refresh_statusline()
   end,
 
   -- Auto-retry
