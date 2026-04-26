@@ -721,6 +721,15 @@ tool_renderers['edit'] = {
   end,
 }
 
+tool_renderers['bash'] = {
+  execution_start = function(chat, start)
+    chat.append_lines { '```bash', '$ ' .. start.args.command, '```' }
+  end,
+  execution_end = function(chat, start, t_end)
+    chat.append_lines { '```bash', t_end.result.content, '```' }
+  end,
+}
+
 -- Extract text string from message content (handles both string and table formats)
 local function extract_text(content)
   if type(content) == 'string' then
