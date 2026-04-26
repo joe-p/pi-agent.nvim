@@ -135,11 +135,7 @@ end
 
 -- Fetch commands from pi (requires rpc module)
 function M.fetch_commands(rpc)
-  get_commands().fetch(rpc, function(cmds)
-    if #cmds > 0 then
-      vim.notify(string.format('Loaded %d slash commands from pi', #cmds), vim.log.levels.INFO)
-    end
-  end)
+  get_commands().fetch(rpc)
 end
 
 -- Get messages (for debugging or /tree-like functionality)
