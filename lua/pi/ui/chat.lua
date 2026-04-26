@@ -279,69 +279,83 @@ local message_handlers = {
 ---@field message AgentMessage
 ---@field assistantMessageEvent AssistantMessageEvent
 
+--- Narrowed MessageUpdateEvent types for specific handlers
+---@alias MessageUpdateEventStart { type: "message_update", message: AgentMessage, assistantMessageEvent: AssistantMessageEventStart }
+---@alias MessageUpdateEventDone { type: "message_update", message: AgentMessage, assistantMessageEvent: AssistantMessageEventDone }
+---@alias MessageUpdateEventError { type: "message_update", message: AgentMessage, assistantMessageEvent: AssistantMessageEventError }
+---@alias MessageUpdateEventTextStart { type: "message_update", message: AgentMessage, assistantMessageEvent: AssistantMessageEventTextStart }
+---@alias MessageUpdateEventTextDelta { type: "message_update", message: AgentMessage, assistantMessageEvent: AssistantMessageEventTextDelta }
+---@alias MessageUpdateEventTextEnd { type: "message_update", message: AgentMessage, assistantMessageEvent: AssistantMessageEventTextEnd }
+---@alias MessageUpdateEventThinkingStart { type: "message_update", message: AgentMessage, assistantMessageEvent: AssistantMessageEventThinkingStart }
+---@alias MessageUpdateEventThinkingDelta { type: "message_update", message: AgentMessage, assistantMessageEvent: AssistantMessageEventThinkingDelta }
+---@alias MessageUpdateEventThinkingEnd { type: "message_update", message: AgentMessage, assistantMessageEvent: AssistantMessageEventThinkingEnd }
+---@alias MessageUpdateEventToolCallStart { type: "message_update", message: AgentMessage, assistantMessageEvent: AssistantMessageEventToolCallStart }
+---@alias MessageUpdateEventToolCallDelta { type: "message_update", message: AgentMessage, assistantMessageEvent: AssistantMessageEventToolCallDelta }
+---@alias MessageUpdateEventToolCallEnd { type: "message_update", message: AgentMessage, assistantMessageEvent: AssistantMessageEventToolCallEnd }
+
 --- Message update event handlers: event.type -> function(msg)
 -- See: https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/rpc.md#message_update-streaming
----@type table[string, fun(msg: MessageUpdateEvent)>
+---@type { start: fun(msg: MessageUpdateEventStart), done: fun(msg: MessageUpdateEventDone), error: fun(msg: MessageUpdateEventError), text_start: fun(msg: MessageUpdateEventTextStart), text_delta: fun(msg: MessageUpdateEventTextDelta), text_end: fun(msg: MessageUpdateEventTextEnd), thinking_start: fun(msg: MessageUpdateEventThinkingStart), thinking_delta: fun(msg: MessageUpdateEventThinkingDelta), thinking_end: fun(msg: MessageUpdateEventThinkingEnd), toolcall_start: fun(msg: MessageUpdateEventToolCallStart), toolcall_delta: fun(msg: MessageUpdateEventToolCallDelta), toolcall_end: fun(msg: MessageUpdateEventToolCallEnd) }
 local message_update_handlers = {
   -- Message lifecycle
-  ---@param msg MessageUpdateEvent
+  ---@param msg MessageUpdateEventStart
   start = function(msg)
     -- Message generation started
   end,
-  ---@param msg MessageUpdateEvent
+  ---@param msg MessageUpdateEventDone
   done = function(msg)
     -- Message complete. event.reason: "stop", "length", "toolUse"
   end,
-  ---@param msg MessageUpdateEvent
+  ---@param msg MessageUpdateEventError
   error = function(msg)
     -- Error occurred. event.reason: "aborted", "error"
   end,
 
   -- Text content
-  ---@param msg MessageUpdateEvent
+  ---@param msg MessageUpdateEventTextStart
   text_start = function(msg)
     -- Text content block started
     M.append_seperator 'Pi'
     M.append_newline()
   end,
-  ---@param msg MessageUpdateEvent
+  ---@param msg MessageUpdateEventTextDelta
   text_delta = function(msg)
     -- Text content chunk
     M.append_text(msg.assistantMessageEvent.delta)
   end,
-  ---@param msg MessageUpdateEvent
+  ---@param msg MessageUpdateEventTextEnd
   text_end = function(msg)
     -- Text content block ended. event.content contains full text
   end,
 
   -- Thinking content
-  ---@param msg MessageUpdateEvent
+  ---@param msg MessageUpdateEventThinkingStart
   thinking_start = function(msg)
     -- Thinking block started
     M.append_seperator 'Thinking...'
     M.append_newline()
   end,
-  ---@param msg MessageUpdateEvent
+  ---@param msg MessageUpdateEventThinkingDelta
   thinking_delta = function(msg)
     -- Thinking content chunk
     M.append_text(msg.assistantMessageEvent.delta)
   end,
-  ---@param msg MessageUpdateEvent
+  ---@param msg MessageUpdateEventThinkingEnd
   thinking_end = function(msg)
     -- Thinking block ended
     M.append_newline()
   end,
 
   -- Tool calls
-  ---@param msg MessageUpdateEvent
+  ---@param msg MessageUpdateEventToolCallStart
   toolcall_start = function(msg)
     -- Tool call started. event.contentIndex, event.partial
   end,
-  ---@param msg MessageUpdateEvent
+  ---@param msg MessageUpdateEventToolCallDelta
   toolcall_delta = function(msg)
     -- Tool call arguments chunk. event.delta contains args JSON fragment
   end,
-  ---@param msg MessageUpdateEvent
+  ---@param msg MessageUpdateEventToolCallEnd
   toolcall_end = function(msg)
     -- Tool call ended. event.toolCall contains full ToolCall object
     local toolCall = msg.assistantMessageEvent.toolCall
@@ -366,7 +380,7 @@ function M.render_message(msg)
   end
 end
 
----@param msg MessageUpdateEvent
+---@param msg MessageUpdateEventStart|MessageUpdateEventDone|MessageUpdateEventError|MessageUpdateEventTextStart|MessageUpdateEventTextDelta|MessageUpdateEventTextEnd|MessageUpdateEventThinkingStart|MessageUpdateEventThinkingDelta|MessageUpdateEventThinkingEnd|MessageUpdateEventToolCallStart|MessageUpdateEventToolCallDelta|MessageUpdateEventToolCallEnd
 function M.handle_message_update(msg)
   local event = msg.assistantMessageEvent
   if not event then
