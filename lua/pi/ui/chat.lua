@@ -195,12 +195,13 @@ local message_handlers = {
   tool_execution_start = function(msg)
     tool_executions[msg.toolCallId] = msg
     local renderer = tool_renderers[msg.toolName]
-    if renderer and renderer.execution_start(M, msg) then
+    if renderer and renderer.execution_start then
+      renderer.execution_start(M, msg)
       return
     end
 
     M.append_newline()
-    M.append_seperator('Tool: ' .. msg.toolName)
+    M.append_seperator('Executing Tool: ' .. msg.toolName)
     if msg.args then
       M.append_lines { vim.json.encode(msg.args) }
     end
