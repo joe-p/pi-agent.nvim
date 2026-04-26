@@ -164,7 +164,7 @@ function M.append_seperator(text)
       local line_idx = line_count - 1
       local text_start = #prefix
       vim.api.nvim_buf_set_extmark(buf, sep_ns, line_idx, text_start, {
-        end_col = text_start + #text,
+        end_col = text_start + #timestamp + #text,
         hl_group = 'PiChatSeparator',
         hl_mode = 'combine',
       })
