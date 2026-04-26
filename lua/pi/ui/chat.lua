@@ -811,7 +811,8 @@ tool_renderers['bash'] = {
 
 tool_renderers['read'] = {
   execution_start = function(chat, start)
-    chat.append_lines { 'Reading file: ' .. start.args.path }
+    M.append_seperator 'Read File'
+    chat.append_lines { start.args.path }
   end,
   execution_end = function(chat, start, t_end)
     if t_end.isError then
