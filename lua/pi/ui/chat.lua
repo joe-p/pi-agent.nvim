@@ -73,6 +73,11 @@ function M.configure_window(win)
   vim.api.nvim_set_option_value('statusline', '%!v:lua._pi_chat_statusline()', { win = win })
 end
 
+-- Strip ANSI escape sequences so they don't render literally in statusline
+local function strip_ansi(text)
+  return text:gsub('\27%[[0-9;]*%a', '')
+end
+
 -- Global statusline function for pichat windows
 _G._pi_chat_statusline = function()
   local session = require 'pi.session'
@@ -93,7 +98,7 @@ _G._pi_chat_statusline = function()
   -- Extension statuses from setStatus RPC
   local statuses = session.get_extension_statuses()
   for _, text in ipairs(statuses) do
-    table.insert(parts, text)
+    table.insert(parts, strip_ansi(text))
   end
 
   -- Build statusline
