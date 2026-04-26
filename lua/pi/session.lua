@@ -27,6 +27,15 @@ local messages = {}
 -- Extension statuses from setStatus RPC
 local extension_statuses = {}
 
+-- Cumulative token usage and cost
+local usage = {
+  input = 0,
+  output = 0,
+  cacheRead = 0,
+  cacheWrite = 0,
+  cost = 0,
+}
+
 -- Handle incoming messages
 function M.handle_message(msg)
   local msg_type = msg.type
@@ -108,6 +117,32 @@ function M.get_state()
   return vim.deepcopy(state)
 end
 
+-- Token usage tracking
+function M.add_usage(u)
+  if not u then
+    return
+  end
+  usage.input = usage.input + (u.input or 0)
+  usage.output = usage.output + (u.output or 0)
+  usage.cacheRead = usage.cacheRead + (u.cacheRead or 0)
+  usage.cacheWrite = usage.cacheWrite + (u.cacheWrite or 0)
+  if u.cost then
+    usage.cost = usage.cost + (u.cost.total or 0)
+  end
+end
+
+function M.get_usage()
+  return vim.deepcopy(usage)
+end
+
+function M.clear_usage()
+  usage.input = 0
+  usage.output = 0
+  usage.cacheRead = 0
+  usage.cacheWrite = 0
+  usage.cost = 0
+end
+
 -- Check if agent is busy
 function M.is_busy()
   return state.isStreaming or state.isCompacting
@@ -131,6 +166,7 @@ end
 function M.clear_history()
   messages = {}
   get_commands().clear()
+  M.clear_usage()
 end
 
 -- Fetch commands from pi (requires rpc module)

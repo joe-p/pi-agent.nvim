@@ -92,6 +92,7 @@ end
 _G._pi_chat_statusline = function()
   local session = require 'pi.session'
   local state = session.get_state()
+  local usage = session.get_usage()
   local parts = {}
 
   -- Base label
@@ -119,6 +120,38 @@ _G._pi_chat_statusline = function()
   local statuses = session.get_extension_statuses()
   for _, text in ipairs(statuses) do
     table.insert(parts, strip_ansi(text))
+  end
+
+  -- Usage stats
+  if usage and (usage.input > 0 or usage.output > 0 or usage.cost > 0) then
+    local function fmt_num(n)
+      if n >= 1000 then
+        return string.format('%.1fk', n / 1000)
+      else
+        return tostring(n)
+      end
+    end
+    local usage_parts = {}
+    if usage.input > 0 then
+      table.insert(usage_parts, '↑' .. fmt_num(usage.input))
+    end
+    if usage.output > 0 then
+      table.insert(usage_parts, '↓' .. fmt_num(usage.output))
+    end
+    if usage.cacheRead > 0 then
+      table.insert(usage_parts, 'cr:' .. fmt_num(usage.cacheRead))
+    end
+    if usage.cacheWrite > 0 then
+      table.insert(usage_parts, 'cw:' .. fmt_num(usage.cacheWrite))
+    end
+    local cost_str
+    if usage.cost >= 0.01 then
+      cost_str = string.format('$%.2f', usage.cost)
+    else
+      cost_str = string.format('$%.4f', usage.cost)
+    end
+    table.insert(usage_parts, cost_str)
+    table.insert(parts, table.concat(usage_parts, ' '))
   end
 
   -- Build statusline
@@ -284,6 +317,7 @@ local message_handlers = {
   ---@param msg AgentEndEvent
   agent_end = function(msg)
     -- Emitted when the agent completes. Contains all messages generated during this run.
+    M.current_assistant = nil
     M.refresh_statusline()
     if msg.messages then
       for _, m in ipairs(msg.messages) do
@@ -327,6 +361,11 @@ local message_handlers = {
   ---@param msg MessageEndEvent
   message_end = function(msg)
     -- Message completes. msg.message contains the completed AgentMessage
+    local message = msg.message or M.current_assistant
+    if message and message.role == 'assistant' and message.usage then
+      session.add_usage(message.usage)
+    end
+    M.current_assistant = nil
     M.append_newline()
   end,
 
@@ -924,7 +963,7 @@ function M.render_history(messages)
         }
       end
 
-      M.render_message { type = 'message_end' }
+      M.render_message { type = 'message_end', message = msg }
     elseif msg.role == 'toolResult' then
       M.render_message {
         type = 'tool_execution_end',
