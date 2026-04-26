@@ -118,8 +118,11 @@ function M.setup_keymaps()
     noremap = true,
     silent = true,
     callback = function()
-      -- Insert @ and open file picker
-      vim.api.nvim_feedkeys('@', 'ni', false)
+      -- Insert @ immediately and open file picker
+      local row, col = unpack(vim.api.nvim_win_get_cursor(0))
+      local line = vim.api.nvim_buf_get_lines(buf, row - 1, row, false)[1] or ''
+      vim.api.nvim_buf_set_lines(buf, row - 1, row, false, { line:sub(1, col) .. '@' .. line:sub(col + 1) })
+      vim.api.nvim_win_set_cursor(0, { row, col + 1 })
       vim.defer_fn(function()
         M.open_file_picker()
       end, 100)
@@ -142,7 +145,14 @@ function M.setup_keymaps()
   vim.api.nvim_buf_set_keymap(buf, 'n', '@', '', {
     noremap = true,
     silent = true,
-    callback = M.open_file_picker,
+    callback = function()
+      -- Insert @ and open file picker
+      local row, col = unpack(vim.api.nvim_win_get_cursor(0))
+      local line = vim.api.nvim_buf_get_lines(buf, row - 1, row, false)[1] or ''
+      vim.api.nvim_buf_set_lines(buf, row - 1, row, false, { line:sub(1, col) .. '@' .. line:sub(col + 1) })
+      vim.api.nvim_win_set_cursor(0, { row, col + 1 })
+      M.open_file_picker()
+    end,
   })
 
   -- Slash command help
@@ -287,11 +297,13 @@ function M.insert_file_ref(filepath)
   local row, col = unpack(vim.api.nvim_win_get_cursor(0))
   local line = vim.api.nvim_buf_get_lines(buf, row - 1, row, false)[1] or ''
 
-  -- Insert @filepath after cursor
+  -- Insert filepath after cursor (the @ is already there)
   local before = line:sub(1, col)
   local after = line:sub(col + 1)
-  vim.api.nvim_buf_set_lines(buf, row - 1, row, false, { before .. '@' .. filepath .. after })
-  vim.api.nvim_win_set_cursor(0, { row, col + 1 + #filepath })
+  vim.api.nvim_buf_set_lines(buf, row - 1, row, false, { before .. filepath .. after })
+  vim.api.nvim_win_set_cursor(0, { row, col + #filepath })
+  -- Pickers exit to normal mode; return to insert mode
+  vim.cmd('startinsert')
 end
 
 function M.focus()
