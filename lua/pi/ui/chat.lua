@@ -234,7 +234,7 @@ end
 ---@field arguments? table
 
 ---@class AgentMessage
----@field role "user"|"assistant"|"toolResult"
+---@field role "user"|"assistant"|"toolResult"|"bashExecution"|"custom"|"branchSummary"|"compactionSummary"
 ---@field content string|ContentBlock[]
 ---@field timestamp number
 ---@field attachments? table[]
@@ -298,10 +298,19 @@ end
 
 ---@alias MessageEvent AgentStartEvent|AgentEndEvent|TurnStartEvent|TurnEndEvent|MessageStartEvent|MessageEndEvent|MessageUpdateEvent|ToolExecutionStartEvent|ToolExecutionUpdateEvent|ToolExecutionEndEvent|ErrorEvent|ExtensionErrorEvent|CompactionStartEvent|CompactionEndEvent|AutoRetryStartEvent|AutoRetryEndEvent|QueueUpdateEvent|ExtensionUIRequestEvent
 
+---@class ToolRenderContext
+---@field source "stream"|"history"
+---@field toolName string
+---@field toolCallId string
+---@field args table
+---@field result? ToolResult
+---@field isError? boolean
+---@field details? table
+
 ---@class ToolRenderer
----@field execution_start? fun(chat, start: ToolExecutionStartEvent): nil
----@field execution_update? fun(chat, start: ToolExecutionStartEvent, update: ToolExecutionUpdateEvent): nil
----@field execution_end? fun(chat, start: ToolExecutionStartEvent, end: ToolExecutionEndEvent): nil
+---@field execution_start? fun(chat, ctx: ToolRenderContext): nil
+---@field execution_update? fun(chat, ctx: ToolRenderContext): nil
+---@field execution_end? fun(chat, ctx: ToolRenderContext): nil
 
 -- Map of tool names to renderer descriptor tables.
 ---@type { [string]: ToolRenderer }
@@ -384,8 +393,14 @@ local message_handlers = {
     session.set_current_activity 'tool_calling'
     M.refresh_statusline()
     local renderer = tool_renderers[msg.toolName]
+    local ctx = {
+      source = 'stream',
+      toolName = msg.toolName,
+      toolCallId = msg.toolCallId,
+      args = msg.args or {},
+    }
     if renderer and renderer.execution_start then
-      renderer.execution_start(M, msg)
+      renderer.execution_start(M, ctx)
       return
     end
 
@@ -406,9 +421,17 @@ local message_handlers = {
     tool_executions[msg.toolCallId] = nil
 
     local renderer = tool_renderers[msg.toolName]
+    local ctx = {
+      source = 'stream',
+      toolName = msg.toolName,
+      toolCallId = msg.toolCallId,
+      args = tool_start and tool_start.args or {},
+      result = msg.result,
+      isError = msg.isError,
+    }
 
     if renderer and renderer.execution_end then
-      renderer.execution_end(M, tool_start, msg)
+      renderer.execution_end(M, ctx)
       return
     end
 
@@ -833,8 +856,8 @@ local function render_diff_lines(lines)
 end
 
 tool_renderers['edit'] = {
-  execution_end = function(chat, start, t_end)
-    local args = start.args
+  execution_end = function(chat, ctx)
+    local args = ctx.args
     local diff = generate_edit_diff(args.path, args.edits)
 
     chat.append_seperator('Edit: ' .. args.path)
@@ -854,26 +877,26 @@ tool_renderers['edit'] = {
 }
 
 tool_renderers['bash'] = {
-  execution_start = function(chat, start)
-    chat.append_lines { '```bash', '$ ' .. start.args.command, '```' }
+  execution_start = function(chat, ctx)
+    chat.append_lines { '```bash', '$ ' .. ctx.args.command, '```' }
   end,
-  execution_end = function(chat, start, t_end)
+  execution_end = function(chat, ctx)
     local lines = { '```bash' }
-    vim.list_extend(lines, extract_result_lines(t_end.result))
+    vim.list_extend(lines, extract_result_lines(ctx.result))
     table.insert(lines, '```')
     chat.append_lines(lines)
   end,
 }
 
 tool_renderers['read'] = {
-  execution_start = function(chat, start)
+  execution_start = function(chat, ctx)
     M.append_seperator 'Read File'
-    chat.append_lines { start.args.path }
+    chat.append_lines { ctx.args.path }
   end,
-  execution_end = function(chat, start, t_end)
-    if t_end.isError then
+  execution_end = function(chat, ctx)
+    if ctx.isError then
       local lines = { 'Read error: ' }
-      vim.list_extend(lines, extract_result_lines(t_end.result))
+      vim.list_extend(lines, extract_result_lines(ctx.result))
       chat.append_lines(lines)
     end
   end,
@@ -900,6 +923,116 @@ end
 function M.render_history(messages)
   if not messages or #messages == 0 then
     return
+  end
+
+  -- Track pending tool calls within this history so we can pair toolResults
+  -- with their original arguments for rendering.
+  local pending_tool_calls = {}
+
+  for _, msg in ipairs(messages) do
+    local role = msg.role
+
+    if role == 'user' then
+      local text = extract_text(msg.content)
+      if text and text ~= '' then
+        M.append_content_with_header('User', text)
+      end
+
+    elseif role == 'assistant' then
+      local model = msg.model or 'Assistant'
+      if msg.errorMessage then
+        M.append_error(msg.errorMessage)
+      end
+
+      if type(msg.content) == 'table' then
+        for _, block in ipairs(msg.content) do
+          if block.type == 'text' and block.text then
+            M.append_seperator(model)
+            local lines = vim.split(block.text, '\n', { plain = true })
+            M.append_lines(lines)
+          elseif block.type == 'thinking' and block.thinking then
+            M.append_seperator(model .. ' (thinking)')
+            if buf and vim.api.nvim_buf_is_valid(buf) then
+              local start_line = vim.api.nvim_buf_line_count(buf) - 1
+              local lines = vim.split(block.thinking, '\n', { plain = true })
+              M.append_lines(lines)
+              local end_line = vim.api.nvim_buf_line_count(buf) - 1
+              for line = start_line, end_line do
+                local text_line = vim.api.nvim_buf_get_lines(buf, line, line + 1, false)[1] or ''
+                if text_line ~= '' then
+                  vim.api.nvim_buf_add_highlight(buf, thinking_ns, 'PiChatThinking', line, 0, -1)
+                end
+              end
+            end
+          elseif block.type == 'toolCall' then
+            pending_tool_calls[block.id] = {
+              name = block.name,
+              arguments = block.arguments,
+            }
+            local ctx = {
+              source = 'history',
+              toolName = block.name,
+              toolCallId = block.id,
+              args = block.arguments or {},
+            }
+            local renderer = tool_renderers[block.name]
+            if renderer and renderer.execution_start then
+              renderer.execution_start(M, ctx)
+            else
+              M.append_seperator('Tool: ' .. block.name)
+              M.append_lines { vim.json.encode(block.arguments or {}) }
+            end
+          end
+        end
+      end
+
+    elseif role == 'toolResult' then
+      local pending = pending_tool_calls[msg.toolCallId]
+      pending_tool_calls[msg.toolCallId] = nil
+      local ctx = {
+        source = 'history',
+        toolName = msg.toolName,
+        toolCallId = msg.toolCallId,
+        args = pending and pending.arguments or {},
+        result = { content = msg.content, details = msg.details },
+        isError = msg.isError,
+      }
+      local renderer = tool_renderers[msg.toolName]
+      if renderer and renderer.execution_end then
+        renderer.execution_end(M, ctx)
+      else
+        M.append_seperator('Tool Result: ' .. msg.toolName)
+        M.append_lines(extract_result_lines({ content = msg.content }))
+      end
+
+    elseif role == 'bashExecution' then
+      M.append_seperator('Bash')
+      M.append_lines { '```bash', '$ ' .. (msg.command or ''), '```' }
+      if msg.output and msg.output ~= '' then
+        local lines = vim.split(msg.output, '\n', { plain = true })
+        M.append_lines { '```bash' }
+        M.append_lines(lines)
+        M.append_lines { '```' }
+      end
+      if msg.cancelled then
+        M.append_lines { '(cancelled)' }
+      elseif msg.exitCode and msg.exitCode ~= 0 then
+        M.append_lines { '(exit code: ' .. tostring(msg.exitCode) .. ')' }
+      end
+
+    elseif role == 'custom' then
+      if msg.display ~= false then
+        local text = extract_text(msg.content)
+        M.append_content_with_header('Custom: ' .. (msg.customType or 'unknown'), text)
+      end
+
+    elseif role == 'branchSummary' then
+      M.append_content_with_header('Branch Summary', msg.summary or '')
+
+    elseif role == 'compactionSummary' then
+      M.append_content_with_header('Compaction Summary', msg.summary or '')
+
+    end
   end
 
   M.scroll_to_bottom()
