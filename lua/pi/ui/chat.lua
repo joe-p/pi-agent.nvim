@@ -69,23 +69,26 @@ end
 
 function M.append_seperator(text)
   M.append_newline()
+  local timestamp = os.date '[%H:%M::%S] '
   if text and text ~= '' then
     local prefix = '── '
     local suffix = ' '
-    local part = prefix .. text .. suffix
+    local part = prefix .. timestamp .. text .. suffix
     local line = part .. string.rep('─', line_width - #part)
     M.append_lines { line }
     if buf and vim.api.nvim_buf_is_valid(buf) then
       local line_count = vim.api.nvim_buf_line_count(buf)
       local line_idx = line_count - 1
-      vim.api.nvim_buf_set_extmark(buf, sep_ns, line_idx, #prefix, {
-        end_col = #prefix + #text,
+      local text_start = #timestamp + #prefix
+      vim.api.nvim_buf_set_extmark(buf, sep_ns, line_idx, text_start, {
+        end_col = text_start + #text,
         hl_group = 'PiChatSeparator',
         hl_mode = 'combine',
       })
     end
   else
-    M.append_lines { string.rep('─', line_width) }
+    local line = timestamp .. string.rep('─', line_width - #timestamp)
+    M.append_lines { line }
   end
 end
 
