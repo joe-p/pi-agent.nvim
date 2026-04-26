@@ -210,6 +210,7 @@ function M.append_seperator(text)
     local line = timestamp .. string.rep('─', line_width - #timestamp)
     M.append_lines { line }
   end
+  M.append_newline()
 end
 
 -- Type definitions for RPC events
