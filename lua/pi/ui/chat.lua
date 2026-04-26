@@ -8,20 +8,6 @@ local opts = {}
 local line_width = 63
 local diff_ns = vim.api.nvim_create_namespace 'pi_chat_diff'
 
--- Map of tool names to renderer descriptor tables.
--- Each descriptor has:
---   call   = function(ctx)   -- ctx: { chat, toolCall }
---   result = function(ctx)   -- ctx: { chat, toolCallId, result, isError }
-M.tool_renderers = {}
-
--- Tracks tool call IDs that have an active custom renderer.
--- Maps toolCallId -> renderer descriptor.
-local active_renderers = {}
-
-function M.register_tool_renderer(tool_name, descriptor)
-  M.tool_renderers[tool_name] = descriptor
-end
-
 function M.setup(config)
   opts = config
 end
@@ -73,7 +59,6 @@ function M.clear()
   end
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, {})
   vim.api.nvim_buf_clear_namespace(buf, diff_ns, 0, -1)
-  active_renderers = {}
 end
 
 function M.append_seperator(text)
@@ -145,6 +130,18 @@ end
 
 ---@alias MessageEvent AgentStartEvent|AgentEndEvent|TurnStartEvent|TurnEndEvent|MessageStartEvent|MessageEndEvent|MessageUpdateEvent|ToolExecutionStartEvent|ToolExecutionUpdateEvent|ToolExecutionEndEvent|ErrorEvent|ExtensionErrorEvent|CompactionStartEvent|CompactionEndEvent|AutoRetryStartEvent|AutoRetryEndEvent|QueueUpdateEvent|ExtensionUIRequestEvent
 
+---@class ToolRenderer
+---@field execution_start? fun(start: ToolExecutionStartEvent): nil
+---@field execution_update? fun(start: ToolExecutionStartEvent, update: ToolExecutionUpdateEvent): nil
+---@field execution_end? fun(start: ToolExecutionStartEvent, end: ToolExecutionEndEvent): nil
+
+-- Map of tool names to renderer descriptor tables.
+---@type { [string]: ToolRenderer }
+M.tool_renderers = {}
+
+---@type {[string]: ToolExecutionStartEvent}
+local tool_executions = {}
+
 --- Message type handlers: msg.type -> function(msg)
 -- See: https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/rpc.md#event-types
 ---@type table[string, fun(msg: MessageEvent)>
@@ -196,8 +193,17 @@ local message_handlers = {
   -- Tool execution lifecycle
   ---@param msg ToolExecutionStartEvent
   tool_execution_start = function(msg)
-    -- Tool begins execution. Contains: toolCallId, toolName, args
-    M.append_tool_start(msg.toolName, msg.args)
+    tool_executions[msg.toolCallId] = msg
+    local renderer = M.tool_renderers[msg.toolName]
+    if renderer and renderer.execution_start(msg) then
+      return
+    end
+
+    M.append_newline()
+    M.append_seperator('Tool: ' .. msg.toolName)
+    if msg.args then
+      M.append_lines { vim.json.encode(msg.args) }
+    end
   end,
   ---@param msg ToolExecutionUpdateEvent
   tool_execution_update = function(msg)
@@ -206,7 +212,31 @@ local message_handlers = {
   ---@param msg ToolExecutionEndEvent
   tool_execution_end = function(msg)
     -- Tool completes. Contains: toolCallId, toolName, result, isError
-    M.append_tool_end(msg.toolCallId, msg.result, msg.isError)
+
+    local tool_start = tool_executions[msg.toolCallId]
+    tool_executions[msg.toolCallId] = nil
+
+    local renderer = M.tool_renderers[msg.toolName]
+
+    if renderer and renderer.execution_end then
+      renderer.execution_end(tool_start, msg)
+      return
+    end
+
+    local content = {}
+
+    if msg.result and msg.result.content then
+      for _, item in ipairs(msg.result.content) do
+        if item.type == 'text' then
+          for _, line in ipairs(vim.split(item.text, '\n', { plain = true })) do
+            table.insert(content, line)
+          end
+        end
+      end
+    end
+
+    M.append_lines(content)
+    M.append_newline()
   end,
 
   -- Errors
@@ -363,16 +393,6 @@ local message_update_handlers = {
   ---@param msg MessageUpdateEventToolCallEnd
   toolcall_end = function(msg)
     -- Tool call ended. event.toolCall contains full ToolCall object
-    local toolCall = msg.assistantMessageEvent.toolCall
-    local renderer = M.tool_renderers[toolCall.name]
-    if renderer and renderer.call then
-      return
-    end
-    M.append_newline()
-    M.append_seperator('Tool: ' .. toolCall.name)
-    if toolCall.arguments then
-      M.append_lines { vim.json.encode(toolCall.arguments) }
-    end
   end,
 }
 
@@ -474,48 +494,6 @@ function M.scroll_to_bottom()
       vim.api.nvim_win_set_cursor(win, { line_count, 0 })
     end
   end
-end
-
-function M.append_tool_start(toolName, args)
-  -- If a call renderer is defined, it will handle display; skip raw tool start
-  local renderer = M.tool_renderers[toolName]
-  if renderer and renderer.call then
-    return
-  end
-
-  M.append_newline()
-  M.append_seperator('Tool: ' .. toolName)
-  if args then
-    M.append_lines { vim.json.encode(args) }
-  end
-end
-
-function M.append_tool_end(toolCallId, result, isError)
-  -- if M.tool_renderers.renderer[]  then
-  --   entry.renderer.result {
-  --     chat = M,
-  --     toolCallId = toolCallId,
-  --     result = result,
-  --     isError = isError,
-  --     toolCall = entry.toolCall,
-  --   }
-  --   return
-  -- end
-  --
-  local content = {}
-
-  if result and result.content then
-    for _, item in ipairs(result.content) do
-      if item.type == 'text' then
-        for _, line in ipairs(vim.split(item.text, '\n', { plain = true })) do
-          table.insert(content, line)
-        end
-      end
-    end
-  end
-
-  M.append_lines(content)
-  M.append_newline()
 end
 
 function M.append_error(err)
