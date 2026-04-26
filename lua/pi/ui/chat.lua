@@ -396,7 +396,7 @@ local message_update_handlers = {
   ---@param msg MessageUpdateEventThinkingStart
   thinking_start = function(msg)
     -- Thinking block started
-    M.append_seperator 'Thinking...'
+    M.append_seperator(M.current_assistant.model .. ' (thinking)')
     M.append_newline()
   end,
   ---@param msg MessageUpdateEventThinkingDelta
