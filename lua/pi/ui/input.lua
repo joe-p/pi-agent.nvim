@@ -187,7 +187,7 @@ function M.send_message(steering)
   end
 
   -- Handle client-side slash commands
-  if text:match '^/sessions' then
+  if text:match '^/resume' then
     M.show_session_picker()
     M.clear()
     return
@@ -268,7 +268,7 @@ function M.insert_file_ref(filepath)
   vim.api.nvim_buf_set_lines(buf, row - 1, row, false, { before .. filepath .. after })
   vim.api.nvim_win_set_cursor(0, { row, insert_col + #filepath })
   -- Pickers exit to normal mode; return to insert mode
-  vim.cmd('startinsert')
+  vim.cmd 'startinsert'
 end
 
 function M.focus()

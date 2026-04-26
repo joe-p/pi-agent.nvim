@@ -17,7 +17,6 @@ A Neovim plugin for chatting with the [pi coding agent](https://github.com/badlo
 - Neovim 0.9+
 - `pi` binary installed: `npm install -g @mariozechner/pi-coding-agent`
 
-
 ## Installation
 
 ### Using [lazy.nvim](https://github.com/folke/lazy.nvim)
@@ -87,16 +86,16 @@ require('pi').send_message('Hello, write a function to reverse a string')
 
 ## Keymaps (Input Buffer)
 
-| Key | Action |
-|-----|--------|
-| `<CR>` (normal mode) | Send message |
-| `S-<CR>` (insert mode) | Send steering message |
-| `<C-s>` (normal mode) | Send steering message |
-| `<C-c>` | Clear input |
-| `<C-x>` (default) | Cancel / abort operation |
-| `C-n` | New session |
-| `@` | File picker (insert file reference) |
-| `?` | Show slash commands help |
+| Key                    | Action                              |
+| ---------------------- | ----------------------------------- |
+| `<CR>` (normal mode)   | Send message                        |
+| `S-<CR>` (insert mode) | Send steering message               |
+| `<C-s>` (normal mode)  | Send steering message               |
+| `<C-c>`                | Clear input                         |
+| `<C-x>` (default)      | Cancel / abort operation            |
+| `C-n`                  | New session                         |
+| `@`                    | File picker (insert file reference) |
+| `?`                    | Show slash commands help            |
 
 > **Note:** The cancel keymap is configurable via `keymaps.cancel` and works in both the input and chat buffers.
 
@@ -110,6 +109,7 @@ Slash commands are provided by the pi agent and its extensions. They are invoked
 - Run `:PiCommands` to see a list of available commands
 
 Commands include:
+
 - **Extension commands** - Registered by extensions via `pi.registerCommand()`
 - **Prompt templates** - Loaded from `.pi/agent/prompts/*.md` files
 - **Skills** - Loaded from `.pi/agent/skills/`
@@ -126,9 +126,10 @@ Commands are loaded from pi when the connection is established. They are execute
 
 These commands are handled by the Neovim plugin:
 
-| Command | Description |
-|---------|-------------|
-| `/sessions` | List and switch between saved sessions |
+| Command   | Description                            |
+| --------- | -------------------------------------- |
+| `/resume` | List and switch between saved sessions |
+| `/new`    | Start new session                      |
 
 ## Architecture
 
@@ -173,6 +174,7 @@ This plugin follows the pi RPC protocol exactly:
 ## Development Status
 
 Basic functionality is implemented:
+
 - ✅ RPC connection and JSONL parsing
 - ✅ Two-window UI layout
 - ✅ Message streaming display
@@ -186,3 +188,4 @@ Basic functionality is implemented:
 ## License
 
 MIT
+
