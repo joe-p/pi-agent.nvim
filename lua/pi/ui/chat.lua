@@ -656,7 +656,7 @@ function M.append_error(err)
 end
 
 function M.append_info(info)
-  M.append_lines { '', '-- ' .. info .. ' --', '' }
+  M.append_content_with_header('Info', info)
 end
 
 local function read_file_content(path)
