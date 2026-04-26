@@ -64,7 +64,7 @@ end
 function M.append_seperator(text)
   M.append_newline()
   if text and text ~= '' then
-    local part = '─ ' .. text .. ' '
+    local part = '── ' .. text .. ' '
     M.append_lines { part .. string.rep('─', line_width - #part) }
   else
     M.append_lines { string.rep('─', line_width) }
