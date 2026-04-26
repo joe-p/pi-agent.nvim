@@ -224,13 +224,16 @@ local message_handlers = {
   -- Tool execution lifecycle
   ---@param msg ToolExecutionStartEvent
   tool_execution_start = function(msg)
+    vim.notify 'tool x start'
     tool_executions[msg.toolCallId] = msg
     local renderer = tool_renderers[msg.toolName]
+    vim.notify 'tool x cond'
     if renderer and renderer.execution_start then
       renderer.execution_start(M, msg)
       return
     end
 
+    vim.notify 'tool x sep'
     M.append_newline()
     M.append_seperator('Executing Tool: ' .. msg.toolName)
     if msg.args then
