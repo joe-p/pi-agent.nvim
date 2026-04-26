@@ -131,13 +131,13 @@ end
 ---@alias MessageEvent AgentStartEvent|AgentEndEvent|TurnStartEvent|TurnEndEvent|MessageStartEvent|MessageEndEvent|MessageUpdateEvent|ToolExecutionStartEvent|ToolExecutionUpdateEvent|ToolExecutionEndEvent|ErrorEvent|ExtensionErrorEvent|CompactionStartEvent|CompactionEndEvent|AutoRetryStartEvent|AutoRetryEndEvent|QueueUpdateEvent|ExtensionUIRequestEvent
 
 ---@class ToolRenderer
----@field execution_start? fun(start: ToolExecutionStartEvent): nil
----@field execution_update? fun(start: ToolExecutionStartEvent, update: ToolExecutionUpdateEvent): nil
----@field execution_end? fun(start: ToolExecutionStartEvent, end: ToolExecutionEndEvent): nil
+---@field execution_start? fun(chat, start: ToolExecutionStartEvent): nil
+---@field execution_update? fun(chat, start: ToolExecutionStartEvent, update: ToolExecutionUpdateEvent): nil
+---@field execution_end? fun(chat, start: ToolExecutionStartEvent, end: ToolExecutionEndEvent): nil
 
 -- Map of tool names to renderer descriptor tables.
 ---@type { [string]: ToolRenderer }
-M.tool_renderers = {}
+local tool_renderers = {}
 
 ---@type {[string]: ToolExecutionStartEvent}
 local tool_executions = {}
@@ -194,8 +194,8 @@ local message_handlers = {
   ---@param msg ToolExecutionStartEvent
   tool_execution_start = function(msg)
     tool_executions[msg.toolCallId] = msg
-    local renderer = M.tool_renderers[msg.toolName]
-    if renderer and renderer.execution_start(msg) then
+    local renderer = tool_renderers[msg.toolName]
+    if renderer and renderer.execution_start(M, msg) then
       return
     end
 
@@ -216,10 +216,10 @@ local message_handlers = {
     local tool_start = tool_executions[msg.toolCallId]
     tool_executions[msg.toolCallId] = nil
 
-    local renderer = M.tool_renderers[msg.toolName]
+    local renderer = tool_renderers[msg.toolName]
 
     if renderer and renderer.execution_end then
-      renderer.execution_end(tool_start, msg)
+      renderer.execution_end(M, tool_start, msg)
       return
     end
 
@@ -633,12 +633,12 @@ local function render_diff_lines(lines)
   end
 end
 
-M.tool_renderers['edit'] = {
-  result = function(ctx)
-    local args = ctx.toolCall.arguments
+tool_renderers['edit'] = {
+  execution_end = function(chat, start, t_end)
+    local args = start.args
     local diff = generate_edit_diff(args.path, args.edits)
 
-    ctx.chat.append_seperator('Edit: ' .. args.path)
+    chat.append_seperator('Edit: ' .. args.path)
     if diff and type(diff) == 'string' then
       local lines = vim.split(diff, '\n', { plain = true })
       -- Remove trailing empty line from split
@@ -647,11 +647,11 @@ M.tool_renderers['edit'] = {
       end
       render_diff_lines(lines)
     else
-      ctx.chat.append_lines { '  (could not generate diff)' }
+      chat.append_lines { '  (could not generate diff)' }
       local content = vim.split(vim.json.encode(args), '\n', { plain = true })
-      ctx.chat.append_lines(content)
+      chat.append_lines(content)
     end
-    ctx.chat.append_newline()
+    chat.append_newline()
   end,
 }
 
