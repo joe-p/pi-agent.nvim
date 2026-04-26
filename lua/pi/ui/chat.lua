@@ -279,6 +279,11 @@ local message_handlers = {
 ---@field message AgentMessage
 ---@field assistantMessageEvent AssistantMessageEvent
 
+---@class MessageUpdateEventGeneric
+---@field type "message_update"
+---@field message AgentMessage
+---@field assistantMessageEvent AssistantMessageEvent
+
 --- Narrowed MessageUpdateEvent types for specific handlers
 ---@alias MessageUpdateEventStart { type: "message_update", message: AgentMessage, assistantMessageEvent: AssistantMessageEventStart }
 ---@alias MessageUpdateEventDone { type: "message_update", message: AgentMessage, assistantMessageEvent: AssistantMessageEventDone }
@@ -380,7 +385,7 @@ function M.render_message(msg)
   end
 end
 
----@param msg MessageUpdateEventStart|MessageUpdateEventDone|MessageUpdateEventError|MessageUpdateEventTextStart|MessageUpdateEventTextDelta|MessageUpdateEventTextEnd|MessageUpdateEventThinkingStart|MessageUpdateEventThinkingDelta|MessageUpdateEventThinkingEnd|MessageUpdateEventToolCallStart|MessageUpdateEventToolCallDelta|MessageUpdateEventToolCallEnd
+---@param msg MessageUpdateEvent|MessageUpdateEventStart|MessageUpdateEventDone|MessageUpdateEventError|MessageUpdateEventTextStart|MessageUpdateEventTextDelta|MessageUpdateEventTextEnd|MessageUpdateEventThinkingStart|MessageUpdateEventThinkingDelta|MessageUpdateEventThinkingEnd|MessageUpdateEventToolCallStart|MessageUpdateEventToolCallDelta|MessageUpdateEventToolCallEnd
 function M.handle_message_update(msg)
   local event = msg.assistantMessageEvent
   if not event then
@@ -408,6 +413,10 @@ end
 
 function M.append_text(text)
   if not text or text == '' then
+    return
+  end
+
+  if buf == nil then
     return
   end
 
@@ -621,6 +630,10 @@ local function generate_edit_diff(path, edits)
 end
 
 local function render_diff_lines(lines)
+  if buf == nil then
+    return
+  end
+
   local start_line = vim.api.nvim_buf_line_count(buf)
   M.append_lines(lines)
 
@@ -649,7 +662,7 @@ M.tool_renderers['edit'] = {
     local diff = generate_edit_diff(args.path, args.edits)
 
     ctx.chat.append_seperator('Edit: ' .. args.path)
-    if diff then
+    if diff and type(diff) == 'string' then
       local lines = vim.split(diff, '\n', { plain = true })
       -- Remove trailing empty line from split
       if lines[#lines] == '' then
