@@ -370,7 +370,6 @@ local message_handlers = {
       session.add_usage(message.usage)
     end
     M.current_assistant = nil
-    M.append_newline()
   end,
 
   -- Tool execution lifecycle
@@ -385,7 +384,6 @@ local message_handlers = {
       return
     end
 
-    M.append_newline()
     M.append_seperator('Executing Tool: ' .. msg.toolName)
     if msg.args then
       M.append_lines { vim.json.encode(msg.args) }
@@ -410,7 +408,6 @@ local message_handlers = {
     end
 
     M.append_lines(extract_result_lines(msg.result))
-    M.append_newline()
   end,
 
   -- Errors
@@ -530,7 +527,6 @@ local message_update_handlers = {
     M.refresh_statusline()
     local model = M.current_assistant and M.current_assistant.model or 'Assistant'
     M.append_seperator(model)
-    M.append_newline()
   end,
   ---@param msg MessageUpdateEventTextDelta
   text_delta = function(msg)
@@ -550,7 +546,6 @@ local message_update_handlers = {
     M.refresh_statusline()
     local model = M.current_assistant and M.current_assistant.model or 'Assistant'
     M.append_seperator(model .. ' (thinking)')
-    M.append_newline()
     if buf and vim.api.nvim_buf_is_valid(buf) then
       M._thinking_start_line = vim.api.nvim_buf_line_count(buf) - 1
     end
@@ -574,7 +569,6 @@ local message_update_handlers = {
   thinking_end = function(msg)
     -- Thinking block ended
     M._thinking_start_line = nil
-    M.append_newline()
   end,
 
   -- Tool calls
@@ -849,7 +843,6 @@ tool_renderers['edit'] = {
       local content = vim.split(vim.json.encode(args), '\n', { plain = true })
       chat.append_lines(content)
     end
-    chat.append_newline()
   end,
 }
 
