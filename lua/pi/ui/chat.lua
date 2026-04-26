@@ -599,6 +599,8 @@ function M.render_message(msg)
   local handler = message_handlers[msg.type]
   if handler then
     handler(msg)
+  else
+    vim.notify('pi-agent ERROR: no handler for ' .. msg.type)
   end
 end
 
