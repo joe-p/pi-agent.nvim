@@ -233,7 +233,7 @@ local message_handlers = {
       return
     end
 
-    vim.notify 'tool x sep'
+    vim.notify('tool x sep ' .. msg.toolName)
     M.append_newline()
     M.append_seperator('Executing Tool: ' .. msg.toolName)
     if msg.args then
