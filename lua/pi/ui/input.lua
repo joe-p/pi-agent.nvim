@@ -30,7 +30,7 @@ function M.create()
     buf = vim.api.nvim_create_buf(false, true)
     pcall(vim.api.nvim_buf_set_name, buf, 'pi-input://input')
     vim.api.nvim_set_option_value('filetype', 'piinput', { buf = buf })
-    vim.api.nvim_set_option_value('buftype', 'acwrite', { buf = buf }) -- Allow writing
+    vim.api.nvim_set_option_value('buftype', 'nofile', { buf = buf })
     vim.api.nvim_set_option_value('bufhidden', 'hide', { buf = buf })
     vim.api.nvim_set_option_value('swapfile', false, { buf = buf })
     vim.api.nvim_set_option_value('modifiable', true, { buf = buf })

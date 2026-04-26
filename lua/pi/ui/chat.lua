@@ -50,6 +50,7 @@ function M.create()
     vim.api.nvim_set_option_value('bufhidden', 'hide', { buf = buf })
     vim.api.nvim_set_option_value('swapfile', false, { buf = buf })
     vim.api.nvim_set_option_value('modifiable', true, { buf = buf })
+    vim.api.nvim_set_option_value('readonly', false, { buf = buf })
   end
 
   local close_key = opts.keymaps and opts.keymaps.close or 'q'

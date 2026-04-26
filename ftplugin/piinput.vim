@@ -1,7 +1,7 @@
 " pi.nvim input buffer settings
 " This file is sourced when editing files with piinput filetype
 
-setlocal buftype=acwrite
+setlocal buftype=nofile
 setlocal noswapfile
 setlocal bufhidden=hide
 setlocal nonumber

@@ -10,10 +10,8 @@ setlocal signcolumn=no
 setlocal wrap
 setlocal linebreak
 setlocal cursorline
-setlocal readonly
-
 " Easy quit
-nnoremap q :close
+nnoremap <buffer> q <cmd>close<CR>
 
 " Scroll to bottom
 nnoremap G G
