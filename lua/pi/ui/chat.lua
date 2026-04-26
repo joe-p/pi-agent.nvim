@@ -809,6 +809,19 @@ tool_renderers['bash'] = {
   end,
 }
 
+tool_renderers['read'] = {
+  execution_start = function(chat, start)
+    chat.append_lines { 'Reading file: ' .. start.args.path }
+  end,
+  execution_end = function(chat, start, t_end)
+    if t_end.isError then
+      local lines = { 'Read error: ' }
+      vim.list_extend(lines, extract_result_lines(t_end.result))
+      chat.append_lines(lines)
+    end
+  end,
+}
+
 -- Extract text string from message content (handles both string and table formats)
 local function extract_text(content)
   if type(content) == 'string' then
