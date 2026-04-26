@@ -180,6 +180,13 @@ function M.send_message(steering)
     return
   end
 
+  if text:match '^/new' then
+    local pi = require 'pi'
+    pi.new_session()
+    M.clear()
+    return
+  end
+
   -- Other slash commands are handled by pi
   -- They are sent just like normal messages, pi parses and executes them
 
