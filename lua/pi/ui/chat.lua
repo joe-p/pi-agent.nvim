@@ -75,7 +75,7 @@ end
 
 -- Strip ANSI escape sequences so they don't render literally in statusline
 local function strip_ansi(text)
-  return text:gsub('\27%[[0-9;]*%a', '')
+  return (text:gsub('\27%[[0-9;]*%a', ''))
 end
 
 -- Global statusline function for pichat windows
