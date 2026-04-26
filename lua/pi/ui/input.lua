@@ -254,11 +254,19 @@ function M.insert_file_ref(filepath)
   local row, col = unpack(vim.api.nvim_win_get_cursor(0))
   local line = vim.api.nvim_buf_get_lines(buf, row - 1, row, false)[1] or ''
 
-  -- Insert filepath after cursor (the @ is already there)
-  local before = line:sub(1, col)
-  local after = line:sub(col + 1)
+  -- The @ was inserted just before opening the picker. When the picker takes
+  -- focus we leave insert mode, which shifts the cursor back one column onto
+  -- the @ itself. Detect that case and insert *after* the @ so the result is
+  -- "@filepath" rather than "filepath@".
+  local insert_col = col
+  if line:sub(col + 1, col + 1) == '@' then
+    insert_col = col + 1
+  end
+
+  local before = line:sub(1, insert_col)
+  local after = line:sub(insert_col + 1)
   vim.api.nvim_buf_set_lines(buf, row - 1, row, false, { before .. filepath .. after })
-  vim.api.nvim_win_set_cursor(0, { row, col + #filepath })
+  vim.api.nvim_win_set_cursor(0, { row, insert_col + #filepath })
   -- Pickers exit to normal mode; return to insert mode
   vim.cmd('startinsert')
 end
