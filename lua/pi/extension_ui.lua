@@ -69,11 +69,71 @@ function M.get_log_level(notify_type)
   end
 end
 
+-- Show multi-line prompt in a floating window. Returns a function to close it.
+local function show_prompt_float(text)
+  local lines = vim.split(text, '\n', { plain = true })
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  vim.bo[buf].modifiable = false
+  vim.bo[buf].buftype = 'nofile'
+
+  local max_width = 0
+  for _, l in ipairs(lines) do
+    max_width = math.max(max_width, vim.fn.strdisplaywidth(l))
+  end
+
+  local width = math.min(max_width + 4, vim.o.columns - 4)
+  local height = math.min(#lines, math.floor(vim.o.lines * 0.4))
+
+  local opts = {
+    relative = 'editor',
+    width = width,
+    height = height,
+    col = math.floor((vim.o.columns - width) / 2),
+    row = math.floor(vim.o.lines * 0.15),
+    style = 'minimal',
+    border = 'rounded',
+    title = ' Prompt ',
+    title_pos = 'center',
+    focusable = false,
+    noautocmd = true,
+  }
+
+  local win = vim.api.nvim_open_win(buf, false, opts)
+  vim.wo[win].wrap = true
+  vim.wo[win].cursorline = false
+  vim.wo[win].number = false
+  vim.wo[win].relativenumber = false
+
+  return function()
+    if vim.api.nvim_win_is_valid(win) then
+      vim.api.nvim_win_close(win, true)
+    end
+    if vim.api.nvim_buf_is_valid(buf) then
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end
+  end
+end
+
 function M.handle_select(id, msg)
-  vim.ui.select(msg.options, {
-    prompt = msg.title,
-  }, function(choice)
+  local title = msg.title or 'Select'
+  local close_float = nil
+
+  -- vim.ui.select doesn't render multi-line prompts well, so show them in a float
+  if title:find '\n' then
+    close_float = show_prompt_float(title)
+    title = 'Select: '
+  end
+
+  local function on_done(choice)
+    if close_float then
+      close_float()
+    end
     M.send_response(id, choice and { value = choice } or { cancelled = true })
+  end
+
+  vim.ui.select(msg.options, { prompt = title }, function(choice)
+    on_done(choice)
   end)
 end
 
