@@ -623,7 +623,7 @@ function M.render_message(msg)
   if handler then
     handler(msg)
   else
-    vim.notify('pi-agent ERROR: no handler for ' .. msg.type)
+    vim.notify('pi-agent ERROR: no handler for ' .. msg.type .. vim.inspect(msg))
   end
 end
 
