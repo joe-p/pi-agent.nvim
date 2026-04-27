@@ -697,8 +697,17 @@ function M.append_lines(lines)
     return
   end
 
+  local flat = {}
+  for _, line in ipairs(lines) do
+    if type(line) == 'string' and line:find('\n', 1, true) then
+      vim.list_extend(flat, vim.split(line, '\n', { plain = true }))
+    else
+      table.insert(flat, line)
+    end
+  end
+
   local line_count = vim.api.nvim_buf_line_count(buf)
-  vim.api.nvim_buf_set_lines(buf, line_count, line_count, false, lines)
+  vim.api.nvim_buf_set_lines(buf, line_count, line_count, false, flat)
 
   -- Scroll to bottom
   M.scroll_to_bottom()
