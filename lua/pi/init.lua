@@ -109,7 +109,9 @@ function M.start()
   rpc.start(cmd, {
     on_message = function(msg)
       session.handle_message(msg)
-      ui.render_message(msg)
+      if msg.type ~= 'response' then
+        ui.render_message(msg)
+      end
     end,
     on_error = function(err)
       vim.notify('pi error: ' .. err, vim.log.levels.ERROR)
