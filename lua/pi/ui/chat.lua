@@ -77,6 +77,7 @@ function M.get_buf()
 end
 
 function M.configure_window(win)
+  vim.api.nvim_set_option_value('winfixbuf', true, { win = win })
   vim.api.nvim_set_option_value('winfixheight', true, { win = win })
   vim.api.nvim_set_option_value('cursorline', false, { win = win })
   vim.api.nvim_set_option_value('number', false, { win = win })

@@ -51,6 +51,7 @@ end
 
 function M.configure_window(win_id)
   win = win_id
+  vim.api.nvim_set_option_value('winfixbuf', true, { win = win_id })
   vim.api.nvim_set_option_value('winfixheight', true, { win = win_id })
   vim.api.nvim_set_option_value('number', false, { win = win_id })
   vim.api.nvim_set_option_value('relativenumber', false, { win = win_id })
