@@ -235,17 +235,24 @@ function M.set_placeholder(text)
 end
 
 function M.open_file_picker()
+  -- Capture cursor position BEFORE opening the picker. The picker exits
+  -- insert mode, which shifts the cursor one column to the left when it
+  -- was at end-of-line. We want to insert at the original cursor position.
+  local row, col = unpack(vim.api.nvim_win_get_cursor(0))
+
   -- Use built-in file picker
   vim.ui.select(vim.fn.glob('**/*', true, true), {
     prompt = 'Select file:',
   }, function(choice)
-    M.insert_file_ref(choice)
+    M.insert_file_ref(choice, row, col)
   end)
 end
 
-function M.insert_file_ref(choice)
-  -- Get cursor position
-  local row, col = unpack(vim.api.nvim_win_get_cursor(0))
+function M.insert_file_ref(choice, row, col)
+  -- Fall back to current cursor position if not provided
+  if not row or not col then
+    row, col = unpack(vim.api.nvim_win_get_cursor(0))
+  end
   local line = vim.api.nvim_buf_get_lines(buf, row - 1, row, false)[1] or ''
 
   local insert_text
