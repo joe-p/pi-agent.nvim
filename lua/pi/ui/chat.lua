@@ -562,7 +562,9 @@ local message_update_handlers = {
     session.set_current_activity 'responding'
     M.refresh_statusline()
     local model = M.current_assistant and M.current_assistant.model or 'Assistant'
-    M.append_seperator(model)
+    model = model:gsub('^.*/', '')
+
+    M.append_seperator(M.current_assistant.provider .. '/' .. model)
   end,
   ---@param msg MessageUpdateEventTextDelta
   text_delta = function(msg)
@@ -581,7 +583,9 @@ local message_update_handlers = {
     session.set_current_activity 'thinking'
     M.refresh_statusline()
     local model = M.current_assistant and M.current_assistant.model or 'Assistant'
-    M.append_seperator(model .. ' (thinking)')
+    model = model:gsub('^.*/', '')
+
+    M.append_seperator(M.current_assistant.provider .. '/' .. model .. ' (thinking)')
     if buf and vim.api.nvim_buf_is_valid(buf) then
       M._thinking_start_line = vim.api.nvim_buf_line_count(buf) - 1
     end
@@ -968,6 +972,8 @@ function M.render_history(messages)
       end
     elseif role == 'assistant' then
       local model = msg.model or 'Assistant'
+      model = model:gsub('^.*/', '')
+
       if msg.errorMessage then
         M.append_error(msg.errorMessage)
       end
@@ -975,11 +981,11 @@ function M.render_history(messages)
       if type(msg.content) == 'table' then
         for _, block in ipairs(msg.content) do
           if block.type == 'text' and block.text then
-            M.append_seperator(model)
+            M.append_seperator(msg.provider .. '/' .. model)
             local lines = vim.split(block.text, '\n', { plain = true })
             M.append_lines(lines)
           elseif block.type == 'thinking' and block.thinking then
-            M.append_seperator(model .. ' (thinking)')
+            M.append_seperator(msg.provider .. '/' .. model .. ' (thinking)')
             if buf and vim.api.nvim_buf_is_valid(buf) then
               local start_line = vim.api.nvim_buf_line_count(buf) - 1
               local lines = vim.split(block.thinking, '\n', { plain = true })
