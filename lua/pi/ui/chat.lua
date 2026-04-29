@@ -104,6 +104,8 @@ _G._pi_chat_statusline = function()
   -- Current model
   if state.model then
     local model_name = state.model.name or state.model.id or 'unknown'
+    model_name = model_name:gsub('^[^:]*: ', '')
+
     local provider = state.model.provider
     if provider and provider ~= '' then
       table.insert(parts, provider .. '/' .. model_name)
