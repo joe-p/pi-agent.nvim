@@ -270,9 +270,11 @@ function M.insert_file_ref(choice, row, col)
   local before = line:sub(1, col)
   local after = line:sub(col + 1)
   vim.api.nvim_buf_set_lines(buf, row - 1, row, false, { before .. insert_text .. after })
-  vim.api.nvim_win_set_cursor(0, { row, col + cursor_offset })
-  -- Pickers exit to normal mode; return to insert mode
+  -- Pickers exit to normal mode; return to insert mode first so the cursor
+  -- can sit past the last character (otherwise normal mode clamps it onto
+  -- the final character, e.g. the closing backtick).
   vim.cmd 'startinsert'
+  vim.api.nvim_win_set_cursor(0, { row, col + cursor_offset })
 end
 
 function M.focus()
