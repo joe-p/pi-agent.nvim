@@ -25,6 +25,9 @@ M.defaults = {
   keymaps = {
     close = 'q',
     cancel = '<C-x>',
+    -- Command keybindings: map keys to slash commands that execute immediately
+    -- Example: { ['<C-e>'] = 'explain', ['<leader>pf'] = 'foo' }
+    commands = {},
   },
 }
 

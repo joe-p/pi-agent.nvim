@@ -157,21 +157,26 @@ function M.setup_keymaps()
       commands.show_help()
     end,
   })
+
+  -- Command keybindings - map keys to slash commands for immediate execution
+  if opts.keymaps and opts.keymaps.commands then
+    for key, cmd_name in pairs(opts.keymaps.commands) do
+      -- Validate command exists
+      vim.api.nvim_buf_set_keymap(buf, 'n', key, '', {
+        noremap = true,
+        silent = true,
+        callback = function()
+          -- Send the slash command immediately
+          local text = '/' .. cmd_name
+          M.send_silent(text)
+        end,
+      })
+    end
+  end
 end
 
-function M.send_message(steering)
-  if not buf or not vim.api.nvim_buf_is_valid(buf) then
-    return
-  end
-
-  -- Get all lines
-  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-  local text = table.concat(lines, '\n')
-
-  -- Trim whitespace
-  text = vim.trim(text)
-
-  -- Don't send empty messages
+-- Send text directly without buffer interaction (for command keybindings)
+function M.send_silent(text, steering)
   if text == '' then
     return
   end
@@ -179,20 +184,17 @@ function M.send_message(steering)
   -- Handle client-side slash commands
   if text:match '^/resume' then
     M.show_session_picker()
-    M.clear()
     return
   end
 
   if text:match '^/new' then
     local pi = require 'pi'
     pi.new_session()
-    M.clear()
     return
   end
 
   if text:match '^/model' then
     M.show_model_picker()
-    M.clear()
     return
   end
 
@@ -217,6 +219,22 @@ function M.send_message(steering)
   -- Add to UI
   local ui = require 'pi.ui'
   ui.add_user_message(text)
+end
+
+function M.send_message(steering)
+  if not buf or not vim.api.nvim_buf_is_valid(buf) then
+    return
+  end
+
+  -- Get all lines
+  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  local text = table.concat(lines, '\n')
+
+  -- Trim whitespace
+  text = vim.trim(text)
+
+  -- Send the message
+  M.send_silent(text, steering)
 
   -- Clear buffer
   M.clear()
