@@ -945,6 +945,13 @@ function M.render_history(messages)
     return
   end
 
+  -- Accumulate usage from historical messages
+  for _, msg in ipairs(messages) do
+    if msg.role == 'assistant' and msg.usage then
+      session.add_usage(msg.usage)
+    end
+  end
+
   -- Track pending tool calls within this history so we can pair toolResults
   -- with their original arguments for rendering.
   local pending_tool_calls = {}
