@@ -3,6 +3,7 @@
 local M = {}
 
 local buf = nil
+---@cast buf integer
 local win = nil
 local opts = {}
 
@@ -122,14 +123,7 @@ function M.setup_keymaps()
     noremap = true,
     silent = true,
     callback = function()
-      -- Insert @ immediately and open file picker
-      local row, col = unpack(vim.api.nvim_win_get_cursor(0))
-      local line = vim.api.nvim_buf_get_lines(buf, row - 1, row, false)[1] or ''
-      vim.api.nvim_buf_set_lines(buf, row - 1, row, false, { line:sub(1, col) .. '@' .. line:sub(col + 1) })
-      vim.api.nvim_win_set_cursor(0, { row, col + 1 })
-      vim.defer_fn(function()
-        M.open_file_picker()
-      end, 100)
+      M.open_file_picker()
     end,
   })
 
@@ -150,11 +144,6 @@ function M.setup_keymaps()
     noremap = true,
     silent = true,
     callback = function()
-      -- Insert @ and open file picker
-      local row, col = unpack(vim.api.nvim_win_get_cursor(0))
-      local line = vim.api.nvim_buf_get_lines(buf, row - 1, row, false)[1] or ''
-      vim.api.nvim_buf_set_lines(buf, row - 1, row, false, { line:sub(1, col) .. '@' .. line:sub(col + 1) })
-      vim.api.nvim_win_set_cursor(0, { row, col + 1 })
       M.open_file_picker()
     end,
   })
@@ -250,30 +239,31 @@ function M.open_file_picker()
   vim.ui.select(vim.fn.glob('**/*', true, true), {
     prompt = 'Select file:',
   }, function(choice)
-    if choice then
-      M.insert_file_ref(choice)
-    end
+    M.insert_file_ref(choice)
   end)
 end
 
-function M.insert_file_ref(filepath)
+function M.insert_file_ref(choice)
   -- Get cursor position
   local row, col = unpack(vim.api.nvim_win_get_cursor(0))
   local line = vim.api.nvim_buf_get_lines(buf, row - 1, row, false)[1] or ''
 
-  -- The @ was inserted just before opening the picker. When the picker takes
-  -- focus we leave insert mode, which shifts the cursor back one column onto
-  -- the @ itself. Detect that case and insert *after* the @ so the result is
-  -- "@filepath" rather than "filepath@".
-  local insert_col = col
-  if line:sub(col + 1, col + 1) == '@' then
-    insert_col = col + 1
+  local insert_text
+  local cursor_offset
+  if choice then
+    -- File selected: wrap in backticks
+    insert_text = '`' .. choice .. '`'
+    cursor_offset = #insert_text
+  else
+    -- Picker cancelled: just insert @
+    insert_text = '@'
+    cursor_offset = 1
   end
 
-  local before = line:sub(1, insert_col)
-  local after = line:sub(insert_col + 1)
-  vim.api.nvim_buf_set_lines(buf, row - 1, row, false, { before .. filepath .. after })
-  vim.api.nvim_win_set_cursor(0, { row, insert_col + #filepath })
+  local before = line:sub(1, col)
+  local after = line:sub(col + 1)
+  vim.api.nvim_buf_set_lines(buf, row - 1, row, false, { before .. insert_text .. after })
+  vim.api.nvim_win_set_cursor(0, { row, col + cursor_offset })
   -- Pickers exit to normal mode; return to insert mode
   vim.cmd 'startinsert'
 end
