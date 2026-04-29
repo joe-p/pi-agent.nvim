@@ -128,7 +128,12 @@ _G._pi_chat_statusline = function()
   -- Current model
   if state.model then
     local model_name = state.model.name or state.model.id or 'unknown'
-    table.insert(parts, model_name)
+    local provider = state.model.provider
+    if provider and provider ~= '' then
+      table.insert(parts, provider .. '/' .. model_name)
+    else
+      table.insert(parts, model_name)
+    end
   end
 
   -- Usage stats
