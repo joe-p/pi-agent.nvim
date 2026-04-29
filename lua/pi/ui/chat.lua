@@ -687,6 +687,9 @@ function M.append_text(text)
 
     vim.api.nvim_buf_set_lines(buf, line_count - 1, line_count, false, { last_line .. text })
   end
+
+  -- Scroll to bottom after appending text
+  M.scroll_to_bottom()
 end
 
 function M.append_newline()
