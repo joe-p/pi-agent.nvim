@@ -889,6 +889,7 @@ tool_renderers['edit'] = {
 
 tool_renderers['bash'] = {
   execution_start = function(chat, ctx)
+    chat.append_seperator 'bash'
     chat.append_lines { '```bash', '$ ' .. ctx.args.command, '```' }
   end,
   execution_end = function(chat, ctx)
