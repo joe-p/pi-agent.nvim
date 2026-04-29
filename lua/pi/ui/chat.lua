@@ -101,6 +101,17 @@ _G._pi_chat_statusline = function()
   local usage = session.get_usage()
   local parts = {}
 
+  -- Current model
+  if state.model then
+    local model_name = state.model.name or state.model.id or 'unknown'
+    local provider = state.model.provider
+    if provider and provider ~= '' then
+      table.insert(parts, provider .. '/' .. model_name)
+    else
+      table.insert(parts, model_name)
+    end
+  end
+
   -- Session state indicators
   if state.isStreaming then
     local activity = state.currentActivity or 'responding'
@@ -123,17 +134,6 @@ _G._pi_chat_statusline = function()
   local statuses = session.get_extension_statuses()
   for _, text in ipairs(statuses) do
     table.insert(parts, strip_ansi(text))
-  end
-
-  -- Current model
-  if state.model then
-    local model_name = state.model.name or state.model.id or 'unknown'
-    local provider = state.model.provider
-    if provider and provider ~= '' then
-      table.insert(parts, provider .. '/' .. model_name)
-    else
-      table.insert(parts, model_name)
-    end
   end
 
   -- Usage stats
