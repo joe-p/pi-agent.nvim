@@ -3,10 +3,10 @@
 
 local M = {}
 
-local config = require 'pi.config'
-local rpc = require 'pi.rpc'
-local ui = require 'pi.ui'
-local session = require 'pi.session'
+local config = require 'pi-agent.config'
+local rpc = require 'pi-agent.rpc'
+local ui = require 'pi-agent.ui'
+local session = require 'pi-agent.session'
 
 -- Default configuration
 M.defaults = {
@@ -208,7 +208,7 @@ end
 
 -- Show slash commands help
 function M.show_commands()
-  require('pi.commands').show_help()
+  require('pi-agent.commands').show_help()
 end
 
 -- Load messages after session switch

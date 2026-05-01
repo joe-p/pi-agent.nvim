@@ -3,8 +3,8 @@
 
 local M = {}
 
-local chat = require 'pi.ui.chat'
-local input = require 'pi.ui.input'
+local chat = require 'pi-agent.ui.chat'
+local input = require 'pi-agent.ui.input'
 
 local opts = {}
 local windows = {}

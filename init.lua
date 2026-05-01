@@ -22,9 +22,9 @@ vim.opt.rtp:prepend(vim.fn.getcwd())
 require('lazy').setup {
   {
     dir = vim.fn.getcwd(),
-    name = 'pi',
+    name = 'pi-agent',
     config = function()
-      require('pi').setup {
+      require('pi-agent').setup {
         layout = 'horizontal',
         chat_height = 0.75,
         input_height = 3,
@@ -36,7 +36,7 @@ require('lazy').setup {
 
 -- Quick keymap to start
 vim.keymap.set('n', 'C-p', function()
-  require('pi').start()
+  require('pi-agent').start()
 end, { desc = 'Start pi chat' })
 
 -- Set up basic options

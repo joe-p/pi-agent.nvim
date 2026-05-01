@@ -13,16 +13,16 @@ function M.handle_request(msg)
 
   -- Fire-and-forget methods
   if method == 'notify' then
-    local chat = require 'pi.ui.chat'
+    local chat = require 'pi-agent.ui.chat'
     chat.append_content_with_header('Notification', msg.message)
     return
   end
 
   if method == 'setStatus' then
-    local session = require 'pi.session'
+    local session = require 'pi-agent.session'
     session.set_extension_status(msg.statusKey, msg.statusText)
     -- Trigger statusline refresh for all pichat windows
-    local chat = require 'pi.ui.chat'
+    local chat = require 'pi-agent.ui.chat'
     chat.refresh_statusline()
     return
   end
@@ -40,7 +40,7 @@ function M.handle_request(msg)
 
   if method == 'set_editor_text' then
     -- Set text in input buffer
-    local input = require 'pi.ui.input'
+    local input = require 'pi-agent.ui.input'
     if input.get_buf() then
       vim.api.nvim_buf_set_lines(input.get_buf(), 0, -1, false, vim.split(msg.text, '\n', { plain = true }))
     end
@@ -234,7 +234,7 @@ function M.show_widget(key, lines, placement)
 end
 
 function M.send_response(id, response)
-  local rpc = require 'pi.rpc'
+  local rpc = require 'pi-agent.rpc'
 
   response.type = 'extension_ui_response'
   response.id = id

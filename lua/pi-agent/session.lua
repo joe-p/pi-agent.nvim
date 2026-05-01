@@ -4,7 +4,7 @@ local M = {}
 
 -- Lazy load commands to avoid circular dependencies
 local function get_commands()
-  return require 'pi.commands'
+  return require 'pi-agent.commands'
 end
 
 -- Session state

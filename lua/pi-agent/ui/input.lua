@@ -8,9 +8,9 @@ local win = nil
 local opts = {}
 
 -- Require modules directly to avoid circular deps
-local rpc = require 'pi.rpc'
-local session = require 'pi.session'
-local commands = require 'pi.commands'
+local rpc = require 'pi-agent.rpc'
+local session = require 'pi-agent.session'
+local commands = require 'pi-agent.commands'
 
 function M.setup(config)
   opts = config
@@ -134,7 +134,7 @@ function M.setup_keymaps()
     callback = function()
       rpc.send { type = 'new_session' }
       -- Clear chat via UI
-      local ui = require 'pi.ui'
+      local ui = require 'pi-agent.ui'
       ui.clear_chat()
     end,
   })
@@ -188,7 +188,7 @@ function M.send_silent(text, steering)
   end
 
   if text:match '^/new' then
-    local pi = require 'pi'
+    local pi = require 'pi-agent'
     pi.new_session()
     return
   end
@@ -217,7 +217,7 @@ function M.send_silent(text, steering)
   rpc.send(cmd)
 
   -- Add to UI
-  local ui = require 'pi.ui'
+  local ui = require 'pi-agent.ui'
   ui.add_user_message(text)
 end
 
@@ -252,14 +252,134 @@ function M.set_placeholder(text)
   -- For now, just leave empty
 end
 
+-- Get files respecting gitignore
+-- Uses git ls-files when in a git repo, otherwise filters with wildignore
+local function get_files()
+  local files = {}
+  local seen = {}
+
+  -- Check if we're in a git repo
+  local git_root = vim.fs.root(0, '.git')
+
+  if git_root then
+    -- Use git ls-files for tracked files
+    local tracked = vim.fn.systemlist('git ls-files --cached --others --exclude-standard')
+    if vim.v.shell_error == 0 then
+      for _, f in ipairs(tracked) do
+        if not seen[f] then
+          seen[f] = true
+          table.insert(files, f)
+        end
+      end
+    end
+  end
+
+  -- If git didn't work or we're not in a repo, fall back to glob with wildignore
+  if #files == 0 then
+    -- Temporarily save and clear wildignore to get all files, then filter manually
+    local old_wildignore = vim.o.wildignore
+    vim.o.wildignore = ''
+
+    local all_files = vim.fn.glob('**/*', false, true)
+    vim.o.wildignore = old_wildignore
+
+    -- Common patterns to ignore (similar to .gitignore defaults)
+    local ignore_patterns = {
+      '^%.git/',
+      '^%.svn/',
+      '^%.hg/',
+      '^node_modules/',
+      '^%.next/',
+      '^dist/',
+      '^build/',
+      '^target/',
+      '^%.idea/',
+      '^%.vscode/',
+      '__pycache__/',
+      '%.pyc$',
+      '%.pyo$',
+      '%.class$',
+      '%.o$',
+      '%.obj$',
+      '%.exe$',
+      '%.dll$',
+      '%.so$',
+      '%.dylib$',
+      '%.a$',
+      '%.lib$',
+      '%.zip$',
+      '%.tar%.gz$',
+      '%.tar$',
+      '%.rar$',
+      '%.7z$',
+      '%.jpg$',
+      '%.jpeg$',
+      '%.png$',
+      '%.gif$',
+      '%.bmp$',
+      '%.svg$',
+      '%.ico$',
+      '%.mp3$',
+      '%.mp4$',
+      '%.avi$',
+      '%.mov$',
+      '%.mkv$',
+      '%.wav$',
+      '%.ogg$',
+      '%.pdf$',
+      '%.doc$',
+      '%.docx$',
+      '%.xls$',
+      '%.xlsx$',
+      '%.ppt$',
+      '%.pptx$',
+      '%.ttf$',
+      '%.otf$',
+      '%.woff$',
+      '%.woff2$',
+      '%.eot$',
+      '^.DS_Store$',
+      '^Thumbs%.db$',
+      '^%.env$',
+      '^%.env%.local$',
+      '^%.env%.%w+$',
+    }
+
+    for _, f in ipairs(all_files) do
+      -- Skip directories
+      if vim.fn.isdirectory(f) == 0 then
+        local should_ignore = false
+        for _, pattern in ipairs(ignore_patterns) do
+          if f:match(pattern) then
+            should_ignore = true
+            break
+          end
+        end
+        if not should_ignore and not seen[f] then
+          seen[f] = true
+          table.insert(files, f)
+        end
+      end
+    end
+  end
+
+  -- Sort files alphabetically
+  table.sort(files)
+
+  return files
+end
+
 function M.open_file_picker()
   -- Capture cursor position BEFORE opening the picker. The picker exits
   -- insert mode, which shifts the cursor one column to the left when it
   -- was at end-of-line. We want to insert at the original cursor position.
   local row, col = unpack(vim.api.nvim_win_get_cursor(0))
 
+  -- Get filtered files
+  local files = get_files()
+
   -- Use built-in file picker
-  vim.ui.select(vim.fn.glob('**/*', true, true), {
+  vim.ui.select(files, {
     prompt = 'Select file:',
   }, function(choice)
     M.insert_file_ref(choice, row, col)
@@ -524,7 +644,7 @@ function M.show_session_picker()
   }, function(choice)
     if choice then
       -- Use the pi module to handle session switching with message loading
-      local pi = require 'pi'
+      local pi = require 'pi-agent'
 
       -- Send switch_session command
       rpc.send({ type = 'switch_session', sessionPath = choice.path }, function(response)

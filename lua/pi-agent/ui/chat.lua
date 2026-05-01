@@ -4,7 +4,7 @@ local M = {}
 
 local buf = nil
 local opts = {}
-local session = require 'pi.session'
+local session = require 'pi-agent.session'
 
 local line_width = 63
 local diff_ns = vim.api.nvim_create_namespace 'pi_chat_diff'
@@ -65,7 +65,7 @@ function M.create()
     noremap = true,
     silent = true,
     callback = function()
-      require('pi.rpc').send { type = 'abort' }
+      require('pi-agent.rpc').send { type = 'abort' }
     end,
   })
 
@@ -96,7 +96,7 @@ end
 
 -- Global statusline function for pichat windows
 _G._pi_chat_statusline = function()
-  local session = require 'pi.session'
+  local session = require 'pi-agent.session'
   local state = session.get_state()
   local usage = session.get_usage()
   local parts = {}
@@ -493,7 +493,7 @@ local message_handlers = {
   ---@param msg ExtensionUIRequestEvent
   extension_ui_request = function(msg)
     -- Extension UI request (select, confirm, input, editor, notify, etc.)
-    require('pi.extension_ui').handle_request(msg)
+    require('pi-agent.extension_ui').handle_request(msg)
   end,
 }
 
