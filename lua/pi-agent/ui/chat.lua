@@ -879,27 +879,27 @@ local function render_diff_lines(lines)
   end
 end
 
-tool_renderers['edit'] = {
-  execution_start = function(chat, ctx) end,
-  execution_end = function(chat, ctx)
-    local args = ctx.args
-    local diff = generate_edit_diff(args.path, args.edits)
-
-    chat.append_seperator('Edit: ' .. args.path)
-    if diff and type(diff) == 'string' then
-      local lines = vim.split(diff, '\n', { plain = true })
-      -- Remove trailing empty line from split
-      if lines[#lines] == '' then
-        table.remove(lines)
-      end
-      render_diff_lines(lines)
-    else
-      chat.append_lines { '  (could not generate diff)' }
-      local content = vim.split(vim.json.encode(args), '\n', { plain = true })
-      chat.append_lines(content)
-    end
-  end,
-}
+-- tool_renderers['edit'] = {
+--   execution_start = function(chat, ctx) end,
+--   execution_end = function(chat, ctx)
+--     local args = ctx.args
+--     local diff = generate_edit_diff(args.path, args.edits)
+--
+--     chat.append_seperator('Edit: ' .. args.path)
+--     if diff and type(diff) == 'string' then
+--       local lines = vim.split(diff, '\n', { plain = true })
+--       -- Remove trailing empty line from split
+--       if lines[#lines] == '' then
+--         table.remove(lines)
+--       end
+--       render_diff_lines(lines)
+--     else
+--       chat.append_lines { '  (could not generate diff)' }
+--       local content = vim.split(vim.json.encode(args), '\n', { plain = true })
+--       chat.append_lines(content)
+--     end
+--   end,
+-- }
 
 tool_renderers['bash'] = {
   execution_start = function(chat, ctx)
