@@ -945,22 +945,49 @@ local function extract_text(content)
   return ''
 end
 
--- Track async history rendering timer for cancellation
-local history_timer = nil
-local history_cancelled = false
+---Return a formatted separator line (copy of logic from append_seperator without buffer writes)
+---@param text string
+---@return string
+local function format_seperator_line(text)
+  local indent = 2
+  local prefix = string.rep(' ', indent) .. text .. ' '
+  local remaining = line_width - #prefix
+  if remaining < 0 then
+    return text
+  end
+  local mid = math.floor(remaining / 2)
+  local left = string.rep('━', mid)
+  local right = string.rep('━', remaining - mid)
+  return prefix .. left .. '┫' .. '┣' .. right
+end
 
----Render historical messages from a session (async chunked rendering)
+---Build content lines with header (for bulk rendering)
+---@param lines string[] Accumulated lines table
+---@param highlights table[] Accumulated highlights table {line_start, line_end, hl_group}
+---@param header string
+---@param text string
+local function build_content_with_header(lines, highlights, header, text)
+  local content = vim.split(text, '\n', { plain = true })
+  local sep_line = format_seperator_line(header)
+  table.insert(lines, sep_line)
+  vim.list_extend(lines, content)
+  table.insert(lines, '')
+  -- Add highlight for separator (approximate - will apply after bulk write)
+  table.insert(highlights, { line = #lines - #content - 2, hl_group = 'PiChatSeparator' })
+end
+
+---Render historical messages from a session (bulk mode - builds in memory, writes once)
 ---@param messages table[] Array of messages to render
 ---@param callback function|nil Optional callback when complete
 function M.render_history(messages, callback)
-  -- Cancel any existing history rendering
-  if history_timer then
-    history_timer:stop()
-    history_timer = nil
-  end
-  history_cancelled = false
-
   if not messages or #messages == 0 then
+    if callback then
+      callback()
+    end
+    return
+  end
+
+  if not buf or not vim.api.nvim_buf_is_valid(buf) then
     if callback then
       callback()
     end
@@ -974,168 +1001,121 @@ function M.render_history(messages, callback)
     end
   end
 
+  -- Build all content in memory first (no UI updates during build)
+  local lines = {}
+  local highlights = {} -- {line, hl_group}
+  local thinking_ranges = {} -- {start_line, end_line} for thinking highlights
   local pending_tool_calls = {}
-  local index = 1
-  local total = #messages
-  local batch_size = 10 -- Process 10 messages per frame
 
-  -- Find loading line index for later removal
-  local loading_line = nil
+  for _, msg in ipairs(messages) do
+    local role = msg.role
 
-  local function process_chunk()
-    if history_cancelled then
-      return
-    end
+    if role == 'user' then
+      local text = extract_text(msg.content)
+      if text and text ~= '' then
+        build_content_with_header(lines, highlights, 'User', text)
+      end
+    elseif role == 'assistant' then
+      local model = msg.model or 'Assistant'
+      model = model:gsub('^.*/', '')
 
-    if not buf or not vim.api.nvim_buf_is_valid(buf) then
-      return
-    end
-
-    local batch_end = math.min(index + batch_size - 1, total)
-
-    for i = index, batch_end do
-      if history_cancelled then
-        return
+      if msg.errorMessage then
+        table.insert(lines, 'Error: ' .. msg.errorMessage)
+        table.insert(lines, '')
       end
 
-      local msg = messages[i]
-      local role = msg.role
-
-      if role == 'user' then
-        local text = extract_text(msg.content)
-        if text and text ~= '' then
-          M.append_content_with_header('User', text)
-        end
-      elseif role == 'assistant' then
-        local model = msg.model or 'Assistant'
-        model = model:gsub('^.*/', '')
-
-        if msg.errorMessage then
-          M.append_error(msg.errorMessage)
-        end
-
-        if type(msg.content) == 'table' then
-          for _, block in ipairs(msg.content) do
-            if block.type == 'text' and block.text then
-              M.append_seperator(msg.provider .. '/' .. model)
-              local lines = vim.split(block.text, '\n', { plain = true })
-              M.append_lines(lines)
-            elseif block.type == 'thinking' and block.thinking then
-              M.append_seperator(msg.provider .. '/' .. model .. ' (thinking)')
-              if buf and vim.api.nvim_buf_is_valid(buf) then
-                local start_line = vim.api.nvim_buf_line_count(buf) - 1
-                local lines = vim.split(block.thinking, '\n', { plain = true })
-                M.append_lines(lines)
-                local end_line = vim.api.nvim_buf_line_count(buf) - 1
-                for line = start_line, end_line do
-                  local text_line = vim.api.nvim_buf_get_lines(buf, line, line + 1, false)[1] or ''
-                  if text_line ~= '' then
-                    vim.api.nvim_buf_add_highlight(buf, thinking_ns, 'PiChatThinking', line, 0, -1)
-                  end
-                end
-              end
-            elseif block.type == 'toolCall' then
-              pending_tool_calls[block.id] = {
-                name = block.name,
-                arguments = block.arguments,
-              }
-              local ctx = {
-                source = 'history',
-                toolName = block.name,
-                toolCallId = block.id,
-                args = block.arguments or {},
-              }
-              local renderer = tool_renderers[block.name]
-              if renderer and renderer.execution_start then
-                renderer.execution_start(M, ctx)
-              else
-                M.append_seperator('Tool: ' .. block.name)
-                M.append_lines { vim.json.encode(block.arguments or {}) }
-              end
+      if type(msg.content) == 'table' then
+        for _, block in ipairs(msg.content) do
+          if block.type == 'text' and block.text then
+            table.insert(lines, format_seperator_line(msg.provider .. '/' .. model))
+            local text_lines = vim.split(block.text, '\n', { plain = true })
+            vim.list_extend(lines, text_lines)
+            table.insert(lines, '')
+          elseif block.type == 'thinking' and block.thinking then
+            table.insert(lines, format_seperator_line(msg.provider .. '/' .. model .. ' (thinking)'))
+            local start_line = #lines - 1
+            local thinking_lines = vim.split(block.thinking, '\n', { plain = true })
+            for _, tl in ipairs(thinking_lines) do
+              table.insert(lines, tl)
             end
+            table.insert(lines, '')
+            table.insert(thinking_ranges, { start_line = start_line, end_line = #lines - 2 })
+          elseif block.type == 'toolCall' then
+            pending_tool_calls[block.id] = {
+              name = block.name,
+              arguments = block.arguments,
+            }
+            table.insert(lines, format_seperator_line('Tool: ' .. block.name))
+            local args_str = vim.json.encode(block.arguments or {})
+            table.insert(lines, args_str)
+            table.insert(lines, '')
           end
         end
-      elseif role == 'toolResult' then
-        local pending = pending_tool_calls[msg.toolCallId]
-        pending_tool_calls[msg.toolCallId] = nil
-        local ctx = {
-          source = 'history',
-          toolName = msg.toolName,
-          toolCallId = msg.toolCallId,
-          args = pending and pending.arguments or {},
-          result = { content = msg.content, details = msg.details },
-          isError = msg.isError,
-        }
-        local renderer = tool_renderers[msg.toolName]
-        if renderer and renderer.execution_end then
-          renderer.execution_end(M, ctx)
-        else
-          M.append_seperator('Tool Result: ' .. msg.toolName)
-          M.append_lines(extract_result_lines { content = msg.content })
-        end
-      elseif role == 'bashExecution' then
-        M.append_seperator 'Bash'
-        M.append_lines { '```bash', '$ ' .. (msg.command or ''), '```' }
-        if msg.output and msg.output ~= '' then
-          local lines = vim.split(msg.output, '\n', { plain = true })
-          M.append_lines { '```bash' }
-          M.append_lines(lines)
-          M.append_lines { '```' }
-        end
-        if msg.cancelled then
-          M.append_lines { '(cancelled)' }
-        elseif msg.exitCode and msg.exitCode ~= 0 then
-          M.append_lines { '(exit code: ' .. tostring(msg.exitCode) .. ')' }
-        end
-      elseif role == 'custom' then
-        if msg.display ~= false then
-          local text = extract_text(msg.content)
-          M.append_content_with_header('Custom: ' .. (msg.customType or 'unknown'), text)
-        end
-      elseif role == 'branchSummary' then
-        M.append_content_with_header('Branch Summary', msg.summary or '')
-      elseif role == 'compactionSummary' then
-        M.append_content_with_header('Compaction Summary', msg.summary or '')
       end
+    elseif role == 'toolResult' then
+      local pending = pending_tool_calls[msg.toolCallId]
+      pending_tool_calls[msg.toolCallId] = nil
+      table.insert(lines, format_seperator_line('Tool Result: ' .. msg.toolName))
+      local result_lines = extract_result_lines { content = msg.content }
+      vim.list_extend(lines, result_lines)
+      table.insert(lines, '')
+    elseif role == 'bashExecution' then
+      table.insert(lines, format_seperator_line('Bash'))
+      table.insert(lines, '```bash')
+      table.insert(lines, '$ ' .. (msg.command or ''))
+      table.insert(lines, '```')
+      if msg.output and msg.output ~= '' then
+        local output_lines = vim.split(msg.output, '\n', { plain = true })
+        table.insert(lines, '```bash')
+        vim.list_extend(lines, output_lines)
+        table.insert(lines, '```')
+      end
+      if msg.cancelled then
+        table.insert(lines, '(cancelled)')
+      elseif msg.exitCode and msg.exitCode ~= 0 then
+        table.insert(lines, '(exit code: ' .. tostring(msg.exitCode) .. ')')
+      end
+      table.insert(lines, '')
+    elseif role == 'custom' then
+      if msg.display ~= false then
+        local text = extract_text(msg.content)
+        build_content_with_header(lines, highlights, 'Custom: ' .. (msg.customType or 'unknown'), text)
+      end
+    elseif role == 'branchSummary' then
+      build_content_with_header(lines, highlights, 'Branch Summary', msg.summary or '')
+    elseif role == 'compactionSummary' then
+      build_content_with_header(lines, highlights, 'Compaction Summary', msg.summary or '')
     end
+  end
 
-    index = batch_end + 1
+  -- Add trailing empty line
+  if #lines > 0 and lines[#lines] ~= '' then
+    table.insert(lines, '')
+  end
 
-    if index <= total and not history_cancelled then
-      -- Schedule next chunk
-      history_timer = vim.defer_fn(process_chunk, 1)
-    else
-      -- Done - remove loading indicator if it exists
-      if loading_line and buf and vim.api.nvim_buf_is_valid(buf) then
-        local line_count = vim.api.nvim_buf_line_count(buf)
-        if loading_line <= line_count then
-          pcall(vim.api.nvim_buf_set_lines, buf, loading_line - 1, loading_line, false, {})
-        end
-      end
-      history_timer = nil
-      if callback then
-        callback()
+  -- Single write to buffer - this is the key performance optimization
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+
+  -- Apply highlights after bulk write
+  for _, range in ipairs(thinking_ranges) do
+    for line = range.start_line, range.end_line do
+      if line < #lines then
+        vim.api.nvim_buf_add_highlight(buf, thinking_ns, 'PiChatThinking', line, 0, -1)
       end
     end
   end
 
-  -- Add loading indicator
-  if buf and vim.api.nvim_buf_is_valid(buf) then
-    M.append_info('Loading ' .. total .. ' message' .. (total == 1 and '' or 's'))
-    loading_line = vim.api.nvim_buf_line_count(buf)
-  end
+  -- Scroll to bottom once after everything is written
+  M.scroll_to_bottom()
 
-  -- Start processing
-  process_chunk()
+  if callback then
+    callback()
+  end
 end
 
----Cancel any in-progress history rendering
+---Cancel any in-progress history rendering (deprecated - renders are now synchronous and fast)
 function M.cancel_history_render()
-  history_cancelled = true
-  if history_timer then
-    history_timer:stop()
-    history_timer = nil
-  end
+  -- No-op since we now render synchronously in bulk mode
 end
 
 return M
