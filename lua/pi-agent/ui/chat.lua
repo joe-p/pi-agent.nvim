@@ -5,6 +5,7 @@ local M = {}
 local buf = nil
 local opts = {}
 local session = require 'pi-agent.session'
+local diff_formatter = require 'pi-agent.diff'
 
 local line_width = 63
 local diff_ns = vim.api.nvim_create_namespace 'pi_chat_diff'
@@ -30,6 +31,9 @@ function M.setup(config)
   opts = config
   vim.api.nvim_set_hl(0, 'PiChatThinking', { link = 'Comment' })
   vim.api.nvim_set_hl(0, 'PiChatSeparator', { italic = true })
+
+  -- Setup diff highlighting
+  diff_formatter.setup_highlights()
 end
 
 function M.create()
@@ -197,6 +201,8 @@ function M.clear()
   vim.api.nvim_buf_clear_namespace(buf, diff_ns, 0, -1)
   vim.api.nvim_buf_clear_namespace(buf, thinking_ns, 0, -1)
   vim.api.nvim_buf_clear_namespace(buf, sep_ns, 0, -1)
+  -- Clear the diff formatter namespace too
+  vim.api.nvim_buf_clear_namespace(buf, require('pi-agent.diff').ns, 0, -1)
 end
 
 function M.append_seperator(text)
@@ -750,156 +756,40 @@ function M.append_info(info)
   M.append_content_with_header('Info', info)
 end
 
-local function read_file_content(path)
-  local file = io.open(path, 'r')
-  if not file then
-    return nil
-  end
-  local content = file:read '*a'
-  file:close()
-  return content
-end
+tool_renderers['edit'] = {
+  execution_start = function(chat, ctx)
+    chat.append_seperator('Edit: ' .. ctx.args.path)
+  end,
+  execution_end = function(chat, ctx)
+    -- New edit plugin returns diff in result.details.diff or result.details.filediff.patch
+    local diff = ctx.result and ctx.result.details and (ctx.result.details.diff or (ctx.result.details.filediff and ctx.result.details.filediff.patch))
+    local file = ctx.result and ctx.result.details and ctx.result.details.filediff and ctx.result.details.filediff.file
 
-local function apply_edits(content, edits)
-  local replacements = {}
-  for _, edit in ipairs(edits) do
-    local oldText = edit.oldText
-    local newText = edit.newText
-    if type(oldText) == 'string' and type(newText) == 'string' then
-      local idx = string.find(content, oldText, 1, true)
-      if idx then
-        table.insert(replacements, {
-          idx = idx,
-          len = #oldText,
-          text = newText,
-        })
+    if diff and type(diff) == 'string' and diff ~= '' then
+      -- Get file extension for syntax highlighting
+      local ext = file and file:match('^.+(%..+)$') or ''
+      local file_type = ext:gsub('^%.', '')
+
+      -- Use the diff formatter for nice inline diff rendering
+      if not buf or not vim.api.nvim_buf_is_valid(buf) then
+        return
+      end
+
+      -- Render the diff with proper formatting
+      diff_formatter.render_diff(buf, diff, file_type, function(lines)
+        M.append_lines(lines)
+      end)
+    else
+      -- Fallback: show the text result if no diff available
+      local lines = extract_result_lines(ctx.result)
+      if #lines > 0 then
+        chat.append_lines(lines)
+      else
+        chat.append_lines { '  (no diff available)' }
       end
     end
-  end
-
-  -- Apply in reverse order to keep indices stable
-  table.sort(replacements, function(a, b)
-    return a.idx > b.idx
-  end)
-
-  for _, rep in ipairs(replacements) do
-    content = string.sub(content, 1, rep.idx - 1) .. rep.text .. string.sub(content, rep.idx + rep.len)
-  end
-
-  return content
-end
-
-local function reconstruct_original(content, edits)
-  local replacements = {}
-  for i = #edits, 1, -1 do
-    local edit = edits[i]
-    local oldText = edit.oldText
-    local newText = edit.newText
-    if type(oldText) == 'string' and type(newText) == 'string' then
-      local idx = string.find(content, newText, 1, true)
-      if idx then
-        table.insert(replacements, {
-          idx = idx,
-          len = #newText,
-          text = oldText,
-        })
-      end
-    end
-  end
-
-  table.sort(replacements, function(a, b)
-    return a.idx > b.idx
-  end)
-
-  for _, rep in ipairs(replacements) do
-    content = string.sub(content, 1, rep.idx - 1) .. rep.text .. string.sub(content, rep.idx + rep.len)
-  end
-
-  return content
-end
-
-local function generate_edit_diff(path, edits)
-  local full_path = vim.fn.fnamemodify(path, ':p')
-  local current_content = read_file_content(full_path) or ''
-
-  local old_content, new_content
-  local first_edit = edits[1]
-  local first_old = first_edit and first_edit.oldText
-
-  if first_old and string.find(current_content, first_old, 1, true) then
-    -- File is in pre-edit state
-    old_content = current_content
-    new_content = apply_edits(current_content, edits)
-  elseif first_edit and first_edit.newText and string.find(current_content, first_edit.newText, 1, true) then
-    -- File already has edits applied; reconstruct original
-    new_content = current_content
-    old_content = reconstruct_original(current_content, edits)
-  else
-    -- Can't determine file state
-    return nil
-  end
-
-  local diff = vim.text.diff(old_content, new_content, {
-    result_type = 'unified',
-    ctxlen = 3,
-  })
-
-  -- vim.diff returns empty string when there are no differences
-  if diff == '' then
-    return nil
-  end
-
-  return diff
-end
-
-local function render_diff_lines(lines)
-  if buf == nil then
-    return
-  end
-
-  local start_line = vim.api.nvim_buf_line_count(buf)
-  M.append_lines(lines)
-
-  for i, line in ipairs(lines) do
-    local line_idx = start_line + i - 1
-    local prefix = string.sub(line, 1, 1)
-    if prefix == '+' then
-      vim.api.nvim_buf_set_extmark(buf, diff_ns, line_idx, 0, {
-        line_hl_group = 'DiffAdd',
-      })
-    elseif prefix == '-' then
-      vim.api.nvim_buf_set_extmark(buf, diff_ns, line_idx, 0, {
-        line_hl_group = 'DiffDelete',
-      })
-    elseif prefix == '@' then
-      vim.api.nvim_buf_set_extmark(buf, diff_ns, line_idx, 0, {
-        line_hl_group = 'DiffChange',
-      })
-    end
-  end
-end
-
--- tool_renderers['edit'] = {
---   execution_start = function(chat, ctx) end,
---   execution_end = function(chat, ctx)
---     local args = ctx.args
---     local diff = generate_edit_diff(args.path, args.edits)
---
---     chat.append_seperator('Edit: ' .. args.path)
---     if diff and type(diff) == 'string' then
---       local lines = vim.split(diff, '\n', { plain = true })
---       -- Remove trailing empty line from split
---       if lines[#lines] == '' then
---         table.remove(lines)
---       end
---       render_diff_lines(lines)
---     else
---       chat.append_lines { '  (could not generate diff)' }
---       local content = vim.split(vim.json.encode(args), '\n', { plain = true })
---       chat.append_lines(content)
---     end
---   end,
--- }
+  end,
+}
 
 tool_renderers['bash'] = {
   execution_start = function(chat, ctx)
@@ -1060,7 +950,7 @@ function M.render_history(messages, callback)
       vim.list_extend(lines, result_lines)
       table.insert(lines, '')
     elseif role == 'bashExecution' then
-      table.insert(lines, format_seperator_line('Bash'))
+      table.insert(lines, format_seperator_line 'Bash')
       table.insert(lines, '```bash')
       table.insert(lines, '$ ' .. (msg.command or ''))
       table.insert(lines, '```')
