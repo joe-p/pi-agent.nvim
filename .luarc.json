@@ -7,7 +7,7 @@
   },
   "workspace": {
     "library": [
-      "/opt/homebrew/opt/neovim/share/nvim/runtime/lua",
+      "~/.local/share/mise/installs/neovim/latest/share/nvim/runtime/lua",
       "${3rd}/luv/library"
     ],
     "checkThirdParty": false
